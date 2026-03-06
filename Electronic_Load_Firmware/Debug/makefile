@@ -64,8 +64,8 @@ all: main-build
 main-build: Electronic_Load_Firmware.elf secondary-outputs
 
 # Tool invocations
-Electronic_Load_Firmware.elf Electronic_Load_Firmware.map: $(OBJS) $(USER_OBJS) C:\Users\nicho\STM32CubeIDE\workspace_2.1.0\Electronic_Load_Firmware\STM32F303RCTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "Electronic_Load_Firmware.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\nicho\STM32CubeIDE\workspace_2.1.0\Electronic_Load_Firmware\STM32F303RCTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Electronic_Load_Firmware.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Electronic_Load_Firmware.elf Electronic_Load_Firmware.map: $(OBJS) $(USER_OBJS) C:\Users\nicho\OneDrive\Documents\Github\BMS-Senior-Design\Electronic_Load_Firmware\STM32F303RCTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "Electronic_Load_Firmware.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\nicho\OneDrive\Documents\Github\BMS-Senior-Design\Electronic_Load_Firmware\STM32F303RCTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Electronic_Load_Firmware.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

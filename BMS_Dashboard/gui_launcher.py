@@ -571,6 +571,18 @@ class DashboardWindow(QMainWindow):
             return "E 0"
         elif cmd == "ELOAD:STATUS":
             return "S"
+        elif cmd.startswith("ELOAD:DAC:"):
+            # ELOAD:DAC:2048 -> "D 2048"
+            parts = cmd.split(":")
+            if len(parts) == 3:
+                try:
+                    dac_val = int(parts[2])
+                    if 0 <= dac_val <= 4095:
+                        return f"D {dac_val}"
+                except ValueError:
+                    pass
+            print(f"[CMD-POLL] Invalid DAC command: {cmd!r}", flush=True)
+            return None
         elif cmd.startswith("ELOAD:CH:"):
             # ELOAD:CH:1:1  or  ELOAD:CH:3:0  — per-channel toggle
             parts = cmd.split(":")

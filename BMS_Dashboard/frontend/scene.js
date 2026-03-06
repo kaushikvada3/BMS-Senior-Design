@@ -5485,6 +5485,25 @@ document.querySelectorAll(".page-tab").forEach((tab) => {
 
 window.__bmsSwitchPage = switchPage;
 
+// --- DAC Slider Control ---
+const eloadDacSlider = document.getElementById("eload-dac-slider");
+const eloadDacValue = document.getElementById("eload-dac-value");
+
+if (eloadDacSlider) {
+  eloadDacSlider.addEventListener("input", (event) => {
+    // Update local UI immediately while dragging
+    const val = event.target.value;
+    if (eloadDacValue) eloadDacValue.textContent = val;
+    updateSliderUI(event.target);
+  });
+
+  eloadDacSlider.addEventListener("change", (event) => {
+    // Send to firmware only when the drag is complete (mouse up)
+    const val = event.target.value;
+    sendBackendCommand(`ELOAD:DAC:${val}`);
+  });
+}
+
 // --- E-Load Simulation Mode ---
 const eloadSimulateToggle = document.getElementById("eload-simulate-toggle");
 const eloadSimulateModeEl = document.getElementById("eload-simulate-mode");

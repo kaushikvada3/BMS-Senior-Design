@@ -319,6 +319,26 @@ int main(void) {
           if (n > 0 && usb_is_configured() && CDC_IsReady_FS())
             (void)CDC_Transmit_FS((uint8_t *)report_buf, (uint16_t)n);
         }
+      } else if (cmd[0] == 'D' || cmd[0] == 'd') {
+        /* "D <0-4095>" — set DAC value */
+        const char *p = cmd + 1;
+        while (*p == ' ')
+          p++;
+
+        uint16_t val = 0;
+        while (*p >= '0' && *p <= '9') {
+          val = val * 10 + (*p - '0');
+          p++;
+        }
+
+        if (val > 4095U)
+          val = 4095U;
+        dac_value = val;
+
+        int n = snprintf(report_buf, sizeof(report_buf), "OK DAC=%u\r\n",
+                         (unsigned)dac_value);
+        if (n > 0 && usb_is_configured() && CDC_IsReady_FS())
+          (void)CDC_Transmit_FS((uint8_t *)report_buf, (uint16_t)n);
       }
 
       cmd_ready_flag = 0;

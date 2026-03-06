@@ -413,6 +413,31 @@
 
         </section>
 
+        <!-- DAC Control -->
+        <section class="hud__section glass-panel">
+          <div class="timeline__header">
+            <p class="eyebrow">Load Value (DAC)</p>
+          </div>
+          <div class="control-group" id="eload-dac-controls">
+            <p class="metric-card__label">Voltage Setting</p>
+            <div class="input-row">
+              <div class="glass-slider" data-glass-slider>
+                <input type="range" min="0" max="4095" step="1" value="0" id="eload-dac-slider" class="glass-slider__input">
+                <div class="glass-slider__track">
+                  <div class="glass-slider__progress" id="eload-dac-progress"></div>
+                </div>
+                <div class="glass-slider__thumb" id="eload-dac-thumb">
+                  <div class="glass-slider__thumb-filter"></div>
+                  <div class="glass-slider__thumb-overlay"></div>
+                  <div class="glass-slider__thumb-specular"></div>
+                </div>
+              </div>
+              <span class="value-display" id="eload-dac-value">0</span>
+            </div>
+            <p class="metric-card__hint">DAC raw (0 - 4095)</p>
+          </div>
+        </section>
+
 
         <!-- Heat Visualization Control -->
         <section class="hud__section glass-panel eload-viz-panel">
