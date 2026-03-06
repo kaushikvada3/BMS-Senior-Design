@@ -442,7 +442,7 @@ int main(void)
 	loadPresent[0] = loadPresent[0] & 0x80;
 
 	// --- -1. SET OVERVOLTAGE & UNDERVOLTAGE TRIP TRESHOLDS ---
-	BQ_WriteReg(OV_TRIP, 0x8E); // 3.8V is 0x6D Set to 4V (0x8E) see p. 22 in ds
+	BQ_WriteReg(OV_TRIP, 0x6D); // 3.8V is 0x6D Set to 4V (0x8E) see p. 22 in ds
 	BQ_WriteReg(UV_TRIP, 0xB9); // Set to 2.7V
 
 	// --- 0. SET OVERCURRENT TRIP DELAY & THRESHOLD ---
