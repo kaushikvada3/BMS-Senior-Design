@@ -74,8 +74,8 @@ all: main-build
 main-build: USB-Connection-Firmware.elf secondary-outputs
 
 # Tool invocations
-USB-Connection-Firmware.elf USB-Connection-Firmware.map: $(OBJS) $(USER_OBJS) C:\Users\Connor\Documents\GitHub\BMS-Senior-Design\USB-Connection-Firmware\STM32F303RCTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "USB-Connection-Firmware.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\Connor\Documents\GitHub\BMS-Senior-Design\USB-Connection-Firmware\STM32F303RCTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="USB-Connection-Firmware.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
+USB-Connection-Firmware.elf USB-Connection-Firmware.map: $(OBJS) $(USER_OBJS) /Users/kaushikvada/Documents/BMS-Senior-Design/USB-Connection-Firmware/STM32F303RCTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "USB-Connection-Firmware.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/Users/kaushikvada/Documents/BMS-Senior-Design/USB-Connection-Firmware/STM32F303RCTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="USB-Connection-Firmware.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
