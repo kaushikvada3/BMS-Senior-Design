@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BMS Dashboard - Frontend Preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script type="importmap">
+      {
+        "imports": {
+          "three": "./vendor/three/build/three.module.js",
+          "three/addons/": "./vendor/three/addons/"
+        }
+      }
+    </script>
+  <link rel="stylesheet" href="style.css" />
+  <script src="qwebchannel.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+</head>
+
+<body class="is-booting">
+  <div id="boot-loader" role="status" aria-live="polite" aria-label="Loading BMS Dashboard">
+    <div id="boot-loader-content">
+      <img src="assets/branding/bms-logo.png" alt="BMS Logo" class="boot-loader__logo" />
+      <p id="boot-stage" class="boot-loader__stage">Initializing Dashboard</p>
+
+      <div class="boot-loader__meta">
+        <span id="boot-detail" class="boot-loader__detail">Loading assets...</span>
+        <span id="boot-percent" class="boot-loader__percent">0%</span>
+      </div>
+      <div class="boot-loader__bar" aria-hidden="true">
+        <div id="boot-progress-fill" class="boot-loader__fill"></div>
+      </div>
+    </div>
+  </div>
+  <div id="chrome-mask" aria-hidden="true">
+    <div class="chrome-mask__bar"></div>
+  </div>
+
+  <!-- ═══════════════ Page-level Tab Bar ═══════════════ -->
+  <nav class="page-tabs" id="page-tabs" aria-label="Dashboard sections">
+    <button class="page-tab active" data-page="bms" id="tab-bms">
+      <span class="page-tab__icon">⚡</span>
+      <span class="page-tab__label">BMS</span>
+    </button>
+    <button class="page-tab" data-page="eload" id="tab-eload">
+      <span class="page-tab__icon">🔌</span>
+      <span class="page-tab__label">E-Load</span>
+    </button>
+    <div class="page-tab__indicator" id="tab-indicator"></div>
+  </nav>
+
+  <!-- ═══════════════ BMS Page ═══════════════ -->
+  <div class="page page--bms active" id="page-bms">
+    <canvas id="scene"></canvas>
+
+    <div class="hud">
+      <header class="hud__header">
+        <div>
+          <p class="eyebrow">UCR EV Lab</p>
+          <h1>BMS Command Surface</h1>
+        </div>
+      </header>
+
+      <!-- Left Column: Cell Grid + Metrics -->
+      <div class="left-column">
+        <section class="hud__section cell-grid glass-panel">
+          <!-- Filled dynamically -->
+        </section>
+
+        <section class="hud__section metrics glass-panel">
+          <div class="metric-card">
+            <p class="metric-card__label">Pack Voltage</p>
+            <p class="metric-card__value" data-pack-voltage>-- V</p>
+          </div>
+          <div class="metric-card">
+            <p class="metric-card__label">Pack Current</p>
+            <p class="metric-card__value" data-pack-current>-- A</p>
+          </div>
+          <div class="metric-card">
+            <p class="metric-card__label">Peak Temperature</p>
+            <p class="metric-card__value" data-pack-temp>-- &deg;C</p>
+          </div>
+          <div class="metric-card">
+            <p class="metric-card__label">Fan 1 Speed</p>
+            <p class="metric-card__value" data-fan-speed-1>-- RPM</p>
+          </div>
+          <div class="metric-card">
+            <p class="metric-card__label">Fan 2 Speed</p>
+            <p class="metric-card__value" data-fan-speed-2>-- RPM</p>
+          </div>
+          <div class="metric-card">
+            <p class="metric-card__label">SYS_STAT</p>
+            <p class="metric-card__value" data-sys-stat>--</p>
+            <button class="mode-btn clear-faults-btn" id="clear-faults-btn">Clear Faults</button>
+          </div>
+          <div class="metric-card">
+            <p class="metric-card__label">Load Present</p>
+            <p class="metric-card__value" data-load-present>--</p>
+          </div>
+          <div class="metric-card metric-card--simulate">
+            <div class="metric-card__row">
+              <p class="metric-card__label">Simulate Data</p>
+              <div class="toggle-switch">
+                <input type="checkbox" id="simulate-data-toggle" />
+                <label for="simulate-data-toggle" aria-label="Toggle simulated telemetry"></label>
+              </div>
+            </div>
+            <p class="metric-card__hint" id="simulate-data-mode">Actual Testing Mode</p>
+          </div>
+        </section>
+      </div>
+
+      <!-- Right Column: Fan Control only (E-Load moved to its own page) -->
+      <div class="right-column">
+
+        <!-- Fan Control -->
+        <section class="hud__section glass-panel">
+          <div class="timeline__header">
+            <p class="eyebrow">Fan Cooling</p>
+            <div class="mode-selector small">
+              <button class="mode-btn active" id="fan-auto-btn">Auto</button>
+              <button class="mode-btn" id="fan-manual-btn">Manual</button>
+            </div>
+          </div>
+          <div class="control-group disabled" id="fan-manual-controls">
+            <p class="metric-card__label">PWM Duty Cycle</p>
+            <div class="input-row">
+              <div class="glass-slider" data-glass-slider>
+                <input type="range" min="0" max="100" step="5" value="0" id="fan-slider" class="glass-slider__input">
+                <div class="glass-slider__track">
+                  <div class="glass-slider__progress"></div>
+                </div>
+                <div class="glass-slider__thumb">
+                  <div class="glass-slider__thumb-filter"></div>
+                  <div class="glass-slider__thumb-overlay"></div>
+                  <div class="glass-slider__thumb-specular"></div>
+                </div>
+              </div>
+              <span class="value-display" id="fan-value">0%</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Charge Mode Control -->
+        <section class="hud__section glass-panel">
+          <div class="timeline__header">
+            <p class="eyebrow">Charge Mode</p>
+            <div class="mode-selector small">
+              <button class="mode-btn active" id="charge-off-btn">Off</button>
+              <button class="mode-btn" id="charge-on-btn">Charge</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Cell Balancing Control -->
+        <section class="hud__section glass-panel">
+          <div class="timeline__header">
+            <p class="eyebrow">Cell Balancing</p>
+            <div class="mode-selector small">
+              <button class="mode-btn active" id="bal-off-btn">Off</button>
+              <button class="mode-btn" id="bal-alt-btn">Balance Cells</button>
+            </div>
+          </div>
+          <div class="control-group disabled" id="bal-controls">
+            <p class="metric-card__label">Delta Threshold</p>
+            <div class="input-row">
+              <div class="glass-slider" data-glass-slider>
+                <input type="range" min="5" max="50" step="5" value="15" id="bal-slider" class="glass-slider__input">
+                <div class="glass-slider__track">
+                  <div class="glass-slider__progress"></div>
+                </div>
+                <div class="glass-slider__thumb">
+                  <div class="glass-slider__thumb-filter"></div>
+                  <div class="glass-slider__thumb-overlay"></div>
+                  <div class="glass-slider__thumb-specular"></div>
+                </div>
+              </div>
+              <span class="value-display" id="bal-value">15 mV</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Serial Configuration -->
+        <section class="hud__section glass-panel serial-config" id="bms-serial-config">
+          <div class="timeline__header">
+            <p class="eyebrow">Serial Port</p>
+            <button class="serial-config__refresh" id="bms-serial-refresh" title="Scan ports">⟳</button>
+          </div>
+          <div class="serial-config__body">
+            <div class="serial-config__row">
+              <label class="serial-config__label" for="bms-port-select">Port</label>
+              <select class="serial-config__select" id="bms-port-select">
+                <option value="" selected>No ports found</option>
+              </select>
+            </div>
+            <div class="serial-config__row">
+              <label class="serial-config__label" for="bms-baud-select">Baud</label>
+              <select class="serial-config__select" id="bms-baud-select">
+                <option value="9600">9600</option>
+                <option value="19200">19200</option>
+                <option value="38400">38400</option>
+                <option value="57600">57600</option>
+                <option value="115200" selected>115200</option>
+                <option value="230400">230400</option>
+                <option value="460800">460800</option>
+                <option value="921600">921600</option>
+              </select>
+            </div>
+            <div class="serial-config__actions">
+              <button class="serial-config__btn serial-config__btn--connect" id="bms-serial-connect">Connect</button>
+              <button class="serial-config__btn serial-config__btn--terminal" id="bms-terminal-toggle"
+                title="Open serial terminal">🖥 Terminal</button>
+            </div>
+            <div class="serial-config__status">
+              <span class="serial-config__dot" id="bms-serial-dot"></span>
+              <span class="serial-config__status-label" id="bms-serial-status">Disconnected</span>
+            </div>
+          </div>
+        </section>
+
+      </div>
+      <div class="status">
+        <span class="status__dot status__dot--waiting" id="data-pulse"></span>
+        <span class="status__label" data-thermal-trend>Waiting for Data</span>
+      </div>
+    </div>
+
+    <aside class="detail-panel glass-panel" data-detail-panel>
+      <div class="detail-panel__header">
+        <div>
+          <p class="eyebrow detail-panel__eyebrow">Cell Focus</p>
+          <h2 data-cell-title>Cell 1</h2>
+        </div>
+        <button class="detail-panel__close" data-close-panel>Close</button>
+      </div>
+      <div class="detail-panel__body">
+        <div class="detail-stat">
+          <p class="detail-stat__label">Voltage</p>
+          <p class="detail-stat__value" data-cell-voltage>4.10 V</p>
+        </div>
+        <div class="detail-stat">
+          <p class="detail-stat__label">Temperature</p>
+          <p class="detail-stat__value" data-cell-temperature>32.5 &deg;C</p>
+        </div>
+        <div class="detail-stat">
+          <p class="detail-stat__label">Current</p>
+          <p class="detail-stat__value" data-cell-current>-- A</p>
+        </div>
+        <div class="detail-stat">
+          <p class="detail-stat__label">Delta</p>
+          <p class="detail-stat__value" data-cell-delta>+8 mV</p>
+        </div>
+        <div class="detail-graph">
+          <div class="detail-graph__header">
+            <p class="detail-stat__label">Recent Voltage</p>
+            <p class="detail-stat__value detail-graph__latest" data-cell-trend-latest>-- V</p>
+          </div>
+          <svg class="detail-graph__svg" viewBox="0 0 260 90" preserveAspectRatio="none" data-cell-trend>
+            <path class="detail-graph__area" data-cell-trend-area></path>
+            <path class="detail-graph__line" data-cell-trend-line></path>
+          </svg>
+          <div class="detail-graph__range">
+            <span data-cell-trend-min>-- V</span>
+            <span data-cell-trend-max>-- V</span>
+          </div>
+        </div>
+        <div class="detail-panel__note">
+          Live trace updates while telemetry streams.
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ═══════════════ E-Load Page ═══════════════ -->
+  <div class="page page--eload" id="page-eload">
+    <canvas id="eload-scene"></canvas>
+
+    <div class="hud eload-hud">
+      <header class="hud__header">
+        <div>
+          <p class="eyebrow">UCR EV Lab</p>
+          <h1>E-Load Command Surface</h1>
+        </div>
+      </header>
+
+      <!-- Left Column: E-Load Graphs & Status -->
+      <div class="left-column">
+
+        <!-- E-Load Shunt Current Trend Graphs -->
+        <section class="hud__section glass-panel eload-graphs">
+          <div class="timeline__header">
+            <p class="eyebrow">Shunt Current Trends</p>
+          </div>
+          <div class="eload-trend-grid">
+            <div class="eload-trend">
+              <div class="detail-graph__header">
+                <span class="detail-stat__label">S1 (CH1)</span>
+                <span class="detail-stat__value detail-graph__latest" id="eload-trend-latest-s1">-- mV</span>
+              </div>
+              <svg class="detail-graph__svg" viewBox="0 0 260 90" preserveAspectRatio="none">
+                <path class="detail-graph__area" id="eload-trend-area-s1"></path>
+                <path class="detail-graph__line" id="eload-trend-line-s1"></path>
+              </svg>
+              <div class="detail-graph__range">
+                <span id="eload-trend-min-s1">-- mV</span>
+                <span id="eload-trend-max-s1">-- mV</span>
+              </div>
+            </div>
+            <div class="eload-trend">
+              <div class="detail-graph__header">
+                <span class="detail-stat__label">S2 (CH2)</span>
+                <span class="detail-stat__value detail-graph__latest" id="eload-trend-latest-s2">-- mV</span>
+              </div>
+              <svg class="detail-graph__svg" viewBox="0 0 260 90" preserveAspectRatio="none">
+                <path class="detail-graph__area" id="eload-trend-area-s2"></path>
+                <path class="detail-graph__line" id="eload-trend-line-s2"></path>
+              </svg>
+              <div class="detail-graph__range">
+                <span id="eload-trend-min-s2">-- mV</span>
+                <span id="eload-trend-max-s2">-- mV</span>
+              </div>
+            </div>
+            <div class="eload-trend">
+              <div class="detail-graph__header">
+                <span class="detail-stat__label">S3 (CH3)</span>
+                <span class="detail-stat__value detail-graph__latest" id="eload-trend-latest-s3">-- mV</span>
+              </div>
+              <svg class="detail-graph__svg" viewBox="0 0 260 90" preserveAspectRatio="none">
+                <path class="detail-graph__area" id="eload-trend-area-s3"></path>
+                <path class="detail-graph__line" id="eload-trend-line-s3"></path>
+              </svg>
+              <div class="detail-graph__range">
+                <span id="eload-trend-min-s3">-- mV</span>
+                <span id="eload-trend-max-s3">-- mV</span>
+              </div>
+            </div>
+            <div class="eload-trend">
+              <div class="detail-graph__header">
+                <span class="detail-stat__label">S4 (CH4)</span>
+                <span class="detail-stat__value detail-graph__latest" id="eload-trend-latest-s4">-- mV</span>
+              </div>
+              <svg class="detail-graph__svg" viewBox="0 0 260 90" preserveAspectRatio="none">
+                <path class="detail-graph__area" id="eload-trend-area-s4"></path>
+                <path class="detail-graph__line" id="eload-trend-line-s4"></path>
+              </svg>
+              <div class="detail-graph__range">
+                <span id="eload-trend-min-s4">-- mV</span>
+                <span id="eload-trend-max-s4">-- mV</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Simulate toggle -->
+        <section class="hud__section glass-panel">
+          <div class="metric-card metric-card--simulate">
+            <div class="metric-card__row">
+              <p class="metric-card__label">Simulate Data</p>
+              <div class="toggle-switch">
+                <input type="checkbox" id="eload-simulate-toggle" />
+                <label for="eload-simulate-toggle" aria-label="Toggle E-Load simulated telemetry"></label>
+              </div>
+            </div>
+            <p class="metric-card__hint" id="eload-simulate-mode">Actual Testing Mode</p>
+          </div>
+        </section>
+      </div>
+
+      <!-- Right Column: E-Load Controls -->
+      <div class="right-column">
+
+        <!-- E-Load Control -->
+        <section class="hud__section eload glass-panel">
+          <div class="timeline__header">
+            <p class="eyebrow">E-Load Control</p>
+          </div>
+          <div class="eload-channel-toggles">
+            <div class="eload-ch-toggle">
+              <span class="eload-ch-label">CH1</span>
+              <div class="toggle-switch toggle-switch--small">
+                <input type="checkbox" id="eload-ch1-toggle" checked />
+                <label for="eload-ch1-toggle" aria-label="Toggle Channel 1"></label>
+              </div>
+            </div>
+            <div class="eload-ch-toggle">
+              <span class="eload-ch-label">CH2</span>
+              <div class="toggle-switch toggle-switch--small">
+                <input type="checkbox" id="eload-ch2-toggle" checked />
+                <label for="eload-ch2-toggle" aria-label="Toggle Channel 2"></label>
+              </div>
+            </div>
+            <div class="eload-ch-toggle">
+              <span class="eload-ch-label">CH3</span>
+              <div class="toggle-switch toggle-switch--small">
+                <input type="checkbox" id="eload-ch3-toggle" checked />
+                <label for="eload-ch3-toggle" aria-label="Toggle Channel 3"></label>
+              </div>
+            </div>
+            <div class="eload-ch-toggle">
+              <span class="eload-ch-label">CH4</span>
+              <div class="toggle-switch toggle-switch--small">
+                <input type="checkbox" id="eload-ch4-toggle" checked />
+                <label for="eload-ch4-toggle" aria-label="Toggle Channel 4"></label>
+              </div>
+            </div>
+            <button class="eload-all-btn" id="eload-all-on" title="All ON">All ON</button>
+            <button class="eload-all-btn" id="eload-all-off" title="All OFF">All OFF</button>
+          </div>
+
+        </section>
+
+
+        <!-- Heat Visualization Control -->
+        <section class="hud__section glass-panel eload-viz-panel">
+          <div class="timeline__header">
+            <p class="eyebrow">Heat Visualization</p>
+            <div class="toggle-switch">
+              <input type="checkbox" id="eload-heat-toggle" checked />
+              <label for="eload-heat-toggle" aria-label="Toggle heatsink heat glow"></label>
+            </div>
+          </div>
+          <div class="control-group" id="eload-heat-intensity-controls">
+            <p class="metric-card__label">Heat Intensity</p>
+            <div class="input-row">
+              <div class="glass-slider" data-glass-slider>
+                <input type="range" min="0" max="100" step="1" value="50" id="eload-heat-intensity-slider"
+                  class="glass-slider__input">
+                <div class="glass-slider__track">
+                  <div class="glass-slider__progress"></div>
+                </div>
+                <div class="glass-slider__thumb">
+                  <div class="glass-slider__thumb-filter"></div>
+                  <div class="glass-slider__thumb-overlay"></div>
+                  <div class="glass-slider__thumb-specular"></div>
+                </div>
+              </div>
+              <span class="value-display" id="eload-heat-intensity-value">50%</span>
+            </div>
+          </div>
+        </section>
+        <!-- Serial Configuration -->
+        <section class="hud__section glass-panel serial-config" id="eload-serial-config">
+          <div class="timeline__header">
+            <p class="eyebrow">Serial Port</p>
+            <button class="serial-config__refresh" id="eload-serial-refresh" title="Scan ports">⟳</button>
+          </div>
+          <div class="serial-config__body">
+            <div class="serial-config__row">
+              <label class="serial-config__label" for="eload-port-select">Port</label>
+              <select class="serial-config__select" id="eload-port-select">
+                <option value="" selected>No ports found</option>
+              </select>
+            </div>
+            <div class="serial-config__row">
+              <label class="serial-config__label" for="eload-baud-select">Baud</label>
+              <select class="serial-config__select" id="eload-baud-select">
+                <option value="9600">9600</option>
+                <option value="19200">19200</option>
+                <option value="38400">38400</option>
+                <option value="57600">57600</option>
+                <option value="115200" selected>115200</option>
+                <option value="230400">230400</option>
+                <option value="460800">460800</option>
+                <option value="921600">921600</option>
+              </select>
+            </div>
+            <div class="serial-config__actions">
+              <button class="serial-config__btn serial-config__btn--connect" id="eload-serial-connect">Connect</button>
+              <button class="serial-config__btn serial-config__btn--terminal" id="eload-terminal-toggle"
+                title="Open serial terminal">🖥 Terminal</button>
+            </div>
+            <div class="serial-config__status">
+              <span class="serial-config__dot" id="eload-serial-dot"></span>
+              <span class="serial-config__status-label" id="eload-serial-status">Disconnected</span>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <div class="status">
+        <span class="status__dot status__dot--waiting" id="eload-data-pulse"></span>
+        <span class="status__label" id="eload-status-label">E-Load Standby</span>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ═══════════════ Serial Terminal (shared, collapsible) ═══════════════ -->
+  <aside class="serial-terminal" id="serial-terminal" aria-hidden="true">
+    <div class="serial-terminal__header">
+      <div class="serial-terminal__title-row">
+        <span class="serial-terminal__icon">🖥</span>
+        <h3 class="serial-terminal__title">Serial Terminal</h3>
+        <span class="serial-terminal__port-badge" id="terminal-port-badge">--</span>
+      </div>
+      <div class="serial-terminal__header-actions">
+        <button class="serial-terminal__btn" id="terminal-clear" title="Clear">⌫</button>
+        <button class="serial-terminal__btn serial-terminal__btn--close" id="terminal-close" title="Close">✕</button>
+      </div>
+    </div>
+    <div class="serial-terminal__log" id="terminal-log" aria-live="polite"></div>
+    <div class="serial-terminal__input-row">
+      <input type="text" class="serial-terminal__input" id="terminal-input" placeholder="Type command..."
+        autocomplete="off" spellcheck="false" />
+      <button class="serial-terminal__send" id="terminal-send">Send</button>
+    </div>
+  </aside>
+
+  <!-- ═══════════════ 3D Hover Tooltip ═══════════════ -->
+  <div id="hover-tooltip" class="hover-tooltip" aria-hidden="true">
+    <p class="hover-tooltip__title"></p>
+    <div class="hover-tooltip__body"></div>
+  </div>
+
+  <svg width="0" height="0" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
+    xmlns:xlink="http://www.w3.org/1999/xlink">
+    <filter id="mini-liquid-lens" x="-50%" y="-50%" width="200%" height="200%">
+      <feImage x="0" y="0" result="normalMap"
+        xlink:href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><radialGradient id='invmap' cx='50%' cy='50%' r='75%'><stop offset='0%' stop-color='rgb(128,128,255)'/><stop offset='90%' stop-color='rgb(255,255,255)'/></radialGradient><rect width='100%' height='100%' fill='url(%23invmap)'/></svg>" />
+      <feDisplacementMap in="SourceGraphic" in2="normalMap" scale="-252" xChannelSelector="R" yChannelSelector="G"
+        result="displaced" />
+      <feMerge>
+        <feMergeNode in="displaced" />
+      </feMerge>
+    </filter>
+  </svg>
+
+  <script src="scene.js" type="module"></script>
+</body>
+
+</html>
