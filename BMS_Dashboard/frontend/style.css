@@ -1110,44 +1110,6 @@ h1 {
   margin-bottom: 0.25rem;
 }
 
-/* E-Load Channel Toggles */
-.eload-channel-toggles {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-}
-
-.eload-ch-toggle {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.eload-ch-label {
-  font-size: 0.7rem;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.eload-all-btn {
-  grid-column: span 2;
-  padding: 0.35rem 0.5rem;
-  border-radius: 6px;
-  border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text-primary);
-  font-size: 0.7rem;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.eload-all-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-}
-
 /* Power Mode Selector */
 .mode-selector {
   display: flex;
@@ -1338,23 +1300,6 @@ body.compact-layout .detail-panel.is-visible {
   transform: translateX(20px);
 }
 
-/* Small toggle variant for channel controls */
-.toggle-switch--small {
-  width: 32px;
-  height: 16px;
-}
-
-.toggle-switch--small label::after {
-  width: 10px;
-  height: 10px;
-  left: 2px;
-  top: 2px;
-}
-
-.toggle-switch--small input:checked+label::after {
-  transform: translateX(14px);
-}
-
 /* --- Telemetry Grid (Premium Redesign) --- */
 .telemetry-grid {
   display: grid;
@@ -1465,6 +1410,51 @@ body.compact-layout .detail-panel.is-visible {
 .mode-selector.small .mode-btn {
   padding: 4px 12px;
   font-size: 0.8rem;
+}
+
+.fet-status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+}
+
+.fet-indicator {
+  padding: 0.75rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.fet-indicator.is-on {
+  border-color: rgba(48, 209, 88, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(48, 209, 88, 0.12);
+}
+
+.fet-indicator.is-off {
+  border-color: rgba(255, 69, 58, 0.2);
+}
+
+.fet-indicator__value {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--text-primary);
+}
+
+.fet-indicator__value.is-on {
+  color: var(--success-color);
+}
+
+.fet-indicator__value.is-off {
+  color: var(--danger-color);
+}
+
+.fet-thermal-note {
+  margin-top: 0.75rem;
+  color: rgba(255, 180, 60, 0.95);
+  font-weight: 600;
 }
 
 /* ═══════════════ E-Load Page Specific ═══════════════ */

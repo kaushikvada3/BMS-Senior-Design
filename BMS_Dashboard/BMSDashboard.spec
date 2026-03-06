@@ -5,7 +5,7 @@ a = Analysis(
     ['gui_launcher.py'],
     pathex=[],
     binaries=[],
-    datas=[('frontend', 'frontend'), ('assets/icons', 'assets/icons')],
+    datas=[('frontend', 'frontend'), ('assets/icons', 'assets/icons'), ('BMS.glb', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

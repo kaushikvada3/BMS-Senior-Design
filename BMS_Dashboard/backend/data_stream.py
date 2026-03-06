@@ -67,8 +67,12 @@ BAL_STATUS_RE = re.compile(
     r'\bbal_en\s*:\s*(\d+)\s+bal_thresh\s*:\s*(\d+)\s+bal_mask\s*:\s*(\d+)(?:\s+bal_alt\s*:\s*(\d+))?(?:\s+charge\s*:\s*(\d+))?\b',
     re.IGNORECASE,
 )
+FET_STATUS_RE = re.compile(
+    r'\bfet_mode\s*:\s*(charge|discharge|off)\s+charge_fet\s*:\s*(\d+)\s+discharge_fet\s*:\s*(\d+)\s+thermal_shutdown\s*:\s*(\d+)\b',
+    re.IGNORECASE,
+)
 NON_VOLTAGE_HINT_RE = re.compile(
-    r'\b(?:ntc|status|bms|rpm|fan|eload|current|temp|fault|ctrl|sys_stat|load|bal_en|CH[1-4])\b|^OK\b',
+    r'\b(?:ntc|status|bms|rpm|fan|eload|current|temp|fault|ctrl|sys_stat|load|bal_en|fet_mode|charge_fet|discharge_fet|thermal_shutdown|CH[1-4])\b|^OK\b',
     re.IGNORECASE,
 )
 EXCLUDED_SERIAL_PORTS = {"COM3"}
@@ -359,8 +363,15 @@ class SerialWorker(QObject):
             self._pending_frame["bal_status"] = bal_status
             self._pending_started_at = now
 
-        # bal_en line is the last in a telemetry cycle; finalize frame
-        if (sys_stat is not None or load_present is not None or bal_status is not None):
+        fet_status = self._extract_fet_status(line)
+        if fet_status is not None:
+            self._ensure_pending_frame()
+            self._pending_frame["fet_status"] = fet_status
+            self._pending_started_at = now
+
+        # bal_en is the terminal line in the current firmware cycle; SYS_STAT/load/fet
+        # should be retained until bal_en arrives or the frame goes stale.
+        if bal_status is not None:
             if "v" in self._pending_frame:
                 return self._consume_pending_frame()
             return None
@@ -453,6 +464,7 @@ class SerialWorker(QObject):
             or SYS_STAT_RE.search(line)
             or LOAD_PRESENT_RE.search(line)
             or BAL_STATUS_RE.search(line)
+            or FET_STATUS_RE.search(line)
         )
 
     def _reset_pending_frame(self, expect_ntc: bool = False):
@@ -534,6 +546,8 @@ class SerialWorker(QObject):
             raw_out["load_present"] = self._pending_frame["load_present"]
         if "bal_status" in self._pending_frame:
             raw_out["bal_status"] = self._pending_frame["bal_status"]
+        if "fet_status" in self._pending_frame:
+            raw_out["fet_status"] = self._pending_frame["fet_status"]
 
         self._saw_structured_frame = True
         self._reset_pending_frame()
@@ -684,6 +698,27 @@ class SerialWorker(QObject):
                     "p": eload_payload.get("p", eload_payload.get("power", 0.0)),
                 }
 
+        fet_status = payload.get("fet_status")
+        if isinstance(fet_status, dict):
+            raw["fet_status"] = fet_status
+        else:
+            normalized_fet_status: Dict[str, Any] = {}
+            mode = payload.get("fet_mode")
+            if isinstance(mode, str) and mode.strip():
+                normalized_fet_status["mode"] = mode.strip().lower()
+            for src_key, dst_key in (
+                ("charge_fet", "charge_enabled"),
+                ("discharge_fet", "discharge_enabled"),
+                ("thermal_shutdown", "thermal_shutdown"),
+            ):
+                value = payload.get(src_key)
+                if isinstance(value, bool):
+                    normalized_fet_status[dst_key] = value
+                elif isinstance(value, int):
+                    normalized_fet_status[dst_key] = bool(value)
+            if normalized_fet_status:
+                raw["fet_status"] = normalized_fet_status
+
         ntc_raw = self._coerce_numeric_list(payload.get("ntc_raw"), limit=16)
         if ntc_raw:
             raw["ntc_raw"] = [int(round(v)) for v in ntc_raw]
@@ -734,10 +769,6 @@ class SerialWorker(QObject):
                     's4': raw.get('s4', 0) / 1000.0,
                     'enabled': bool(any_on),
                     'v_set': 0.0,
-                    'ch1': bool(raw.get('ch1', 0)),
-                    'ch2': bool(raw.get('ch2', 0)),
-                    'ch3': bool(raw.get('ch3', 0)),
-                    'ch4': bool(raw.get('ch4', 0)),
                 }
             }
         elif 'i_set' in raw:
@@ -772,6 +803,75 @@ class SerialWorker(QObject):
             }
 
         return eload_data
+
+    @staticmethod
+    def _normalize_fet_mode(mode: Any) -> Optional[str]:
+        if not isinstance(mode, str):
+            return None
+        normalized = mode.strip().lower()
+        if normalized in {"charge", "discharge", "off"}:
+            return normalized
+        return None
+
+    def _normalize_fet_status_payload(self, payload: Any) -> Optional[dict]:
+        if not isinstance(payload, dict):
+            return None
+
+        mode = self._normalize_fet_mode(payload.get("mode"))
+        charge_enabled = payload.get("charge_enabled")
+        discharge_enabled = payload.get("discharge_enabled")
+        thermal_shutdown = payload.get("thermal_shutdown")
+
+        normalized = {
+            "mode": mode,
+            "charge_enabled": bool(charge_enabled) if isinstance(charge_enabled, (bool, int)) else None,
+            "discharge_enabled": bool(discharge_enabled) if isinstance(discharge_enabled, (bool, int)) else None,
+            "thermal_shutdown": bool(thermal_shutdown) if isinstance(thermal_shutdown, (bool, int)) else False,
+        }
+
+        if (
+            normalized["mode"] is None
+            and normalized["charge_enabled"] is None
+            and normalized["discharge_enabled"] is None
+            and not normalized["thermal_shutdown"]
+        ):
+            return None
+
+        if normalized["mode"] == "charge":
+            normalized["charge_enabled"] = not normalized["thermal_shutdown"]
+            normalized["discharge_enabled"] = False
+        elif normalized["mode"] == "discharge":
+            normalized["charge_enabled"] = False
+            normalized["discharge_enabled"] = not normalized["thermal_shutdown"]
+        elif normalized["mode"] == "off":
+            normalized["charge_enabled"] = False
+            normalized["discharge_enabled"] = False
+
+        if normalized["mode"] is None:
+            if normalized["charge_enabled"] is True:
+                normalized["mode"] = "charge"
+            elif normalized["discharge_enabled"] is True:
+                normalized["mode"] = "discharge"
+            elif (
+                normalized["charge_enabled"] is False
+                and normalized["discharge_enabled"] is False
+            ):
+                normalized["mode"] = "off"
+
+        return normalized
+
+    def _infer_legacy_fet_status(self, bal_status: Any) -> Optional[dict]:
+        if not isinstance(bal_status, dict):
+            return None
+        charge_flag = bal_status.get("charge")
+        if not isinstance(charge_flag, (bool, int)):
+            return None
+        return {
+            "mode": "charge" if bool(charge_flag) else "discharge",
+            "charge_enabled": bool(charge_flag),
+            "discharge_enabled": not bool(charge_flag),
+            "thermal_shutdown": False,
+        }
 
     @staticmethod
     def _coerce_numeric(value: Any) -> Optional[float]:
@@ -945,6 +1045,21 @@ class SerialWorker(QObject):
         except (TypeError, ValueError):
             return None
 
+    def _extract_fet_status(self, line: str) -> Optional[dict]:
+        """Extract FET status from lines like 'fet_mode:discharge charge_fet:0 discharge_fet:1 thermal_shutdown:0'."""
+        match = FET_STATUS_RE.search(line)
+        if not match:
+            return None
+        try:
+            return {
+                "mode": match.group(1).lower(),
+                "charge_enabled": bool(int(match.group(2))),
+                "discharge_enabled": bool(int(match.group(3))),
+                "thermal_shutdown": bool(int(match.group(4))),
+            }
+        except (TypeError, ValueError):
+            return None
+
     def _extract_indexed_series(self, line: str, regex: re.Pattern, limit: int = 10) -> List[float]:
         """Extract indexed values like C1: 3.54 ... and return ordered values by index."""
         values_by_index = {}
@@ -1110,6 +1225,9 @@ class SerialWorker(QObject):
             # "enabled" can come as bool (string format) or int "en" (JSON format)
             en_val = eload.get("enabled", eload.get("en", 0))
             pack_current = self._coerce_numeric(raw.get("i"))
+            fet_status = self._normalize_fet_status_payload(raw.get("fet_status"))
+            if fet_status is None:
+                fet_status = self._infer_legacy_fet_status(raw.get("bal_status"))
 
             result = {
                 "cells": cells,
@@ -1129,11 +1247,6 @@ class SerialWorker(QObject):
                     "s2": float(s2_val if s2_val is not None else 0.0),
                     "s3": float(s3_val if s3_val is not None else 0.0),
                     "s4": float(s4_val if s4_val is not None else 0.0),
-                    # Per-channel enable states
-                    "ch1": bool(eload.get("ch1", True)),
-                    "ch2": bool(eload.get("ch2", True)),
-                    "ch3": bool(eload.get("ch3", True)),
-                    "ch4": bool(eload.get("ch4", True)),
                     # Legacy aliases kept for any consumers that still use them
                     "target_current": float(i_set if i_set is not None else 0.0),
                     "target_voltage": float(v_set if v_set is not None else 0.0),
@@ -1162,6 +1275,8 @@ class SerialWorker(QObject):
                 result["load_present"] = int(raw["load_present"])
             if "bal_status" in raw:
                 result["bal_status"] = raw["bal_status"]
+            if fet_status is not None:
+                result["fet_status"] = fet_status
 
             return result
         except Exception as e:
