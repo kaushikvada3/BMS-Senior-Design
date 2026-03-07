@@ -1,12 +1,11 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 const { gsap } = window;
 
 // --- Configuration ---
-const MODEL_PATH = "battery_design.fbx";
+const MODEL_PATH = "/runtime-assets/BMS.glb";
 const CELL_NAME_PATTERN = /\b(cell|cyl|cylinder)\b/i; // Generic fallback
 const EXPLICIT_CELL_NAME_PATTERN = /\bbattery\s*cell\b|\bcell[\s_-]*\d+\b/i;
 const SHELL_NAME_PATTERN = /shell|case|housing|enclosure|cover|body|chassis/i;
@@ -2326,23 +2325,6 @@ async function initializeLoadedModel(object) {
   if (cellMeshes.length === 0) {
     console.warn("No cells found matching pattern. Logging all mesh names:");
     object.traverse((child) => { if (child.isMesh) console.log(child.name); });
-
-    // Fallback: Add a placeholder box so the user sees SOMETHING.
-    const placeholder = new THREE.Mesh(
-      new THREE.BoxGeometry(5, 5, 5),
-      new THREE.MeshStandardMaterial({ color: 0xff0000, wireframe: true }),
-    );
-    scene.add(placeholder);
-
-    // Add a text label if possible, or just log.
-    const msg = document.createElement("div");
-    msg.style.position = "absolute";
-    msg.style.bottom = "20px";
-    msg.style.left = "50%";
-    msg.style.transform = "translateX(-50%)";
-    msg.style.color = "orange";
-    msg.innerText = "Warning: No battery cells found in model. Showing wireframe box.";
-    document.body.appendChild(msg);
   }
 
   setBootDetail("3D model ready.");
@@ -2968,7 +2950,7 @@ function updateEloadFanSpin(delta) {
 }
 
 function handleModelLoadFailure(error) {
-  console.error("An error happened loading the FBX:", error);
+  console.error("An error happened loading the 3D model:", error);
   const message = (error && typeof error.message === "string" && error.message.trim().length > 0)
     ? `3D model loading error: ${error.message}`
     : "3D model loading error.";
@@ -2978,12 +2960,12 @@ function handleModelLoadFailure(error) {
 setBootStageProgress("bootstrap", 0.85);
 setBootStage("modelDownload", "Loading 3D model...");
 setBootDetail("Waiting for transfer...");
-console.log("Starting FBX load...");
-const loader = new FBXLoader();
+console.log("Starting GLB load...");
+const loader = new GLTFLoader();
 loader.load(
   MODEL_PATH,
-  (object) => {
-    void initializeLoadedModel(object).catch(handleModelLoadFailure);
+  (gltf) => {
+    void initializeLoadedModel(gltf.scene).catch(handleModelLoadFailure);
   },
   (xhr) => {
     const loaded = Number(xhr?.loaded) || 0;
@@ -3745,6 +3727,9 @@ const fanSpeed1El = document.querySelector("[data-fan-speed-1]");
 const fanSpeed2El = document.querySelector("[data-fan-speed-2]");
 const sysStatEl = document.querySelector("[data-sys-stat]");
 const loadPresentEl = document.querySelector("[data-load-present]");
+const chargeFetStatusEl = document.querySelector("[data-charge-fet-status]");
+const dischargeFetStatusEl = document.querySelector("[data-discharge-fet-status]");
+const fetThermalNoteEl = document.querySelector("[data-fet-thermal-note]");
 const thermalTrendEl = document.querySelector("[data-thermal-trend]");
 const cellGridEl = document.querySelector(".cell-grid");
 const detailPanel = document.querySelector("[data-detail-panel]");
@@ -3764,6 +3749,9 @@ const STATUS_WAITING = "Waiting for Data";
 const STATUS_CONNECTED = "Connected";
 const STATUS_SIMULATION = "Simulation Mode";
 const STATUS_SIM_COMMAND_BLOCKED = "Simulation ON: hardware commands blocked";
+const FET_MODE_CHARGE = "charge";
+const FET_MODE_DISCHARGE = "discharge";
+const FET_MODE_OFF = "off";
 const CELL_HISTORY_LENGTH = 45;
 const TREND_WIDTH = 260;
 const TREND_HEIGHT = 90;
@@ -3804,6 +3792,7 @@ let simulationIntervalId = null;
 let simulationStatusResetTimer = 0;
 let lastRealDashboardPayload = null;
 let simulationRestoreTimer = 0;
+let simulatedFetMode = FET_MODE_DISCHARGE;
 
 function createBlankState() {
   return {
@@ -3831,7 +3820,78 @@ function createBlankState() {
     },
     sys_stat: null,
     load_present: null,
+    fet_status: {
+      mode: null,
+      charge_enabled: null,
+      discharge_enabled: null,
+      thermal_shutdown: false,
+    },
   };
+}
+
+function normalizeFetMode(mode) {
+  if (typeof mode !== "string") return null;
+  const normalized = mode.trim().toLowerCase();
+  if (normalized === FET_MODE_CHARGE) return FET_MODE_CHARGE;
+  if (normalized === FET_MODE_DISCHARGE) return FET_MODE_DISCHARGE;
+  if (normalized === FET_MODE_OFF) return FET_MODE_OFF;
+  return null;
+}
+
+function buildFetStatus(mode, thermalShutdown = false) {
+  const normalizedMode = normalizeFetMode(mode);
+  const isThermal = Boolean(thermalShutdown);
+  if (!normalizedMode) {
+    return {
+      mode: null,
+      charge_enabled: null,
+      discharge_enabled: null,
+      thermal_shutdown: isThermal,
+    };
+  }
+  return {
+    mode: normalizedMode,
+    charge_enabled: !isThermal && normalizedMode === FET_MODE_CHARGE,
+    discharge_enabled: !isThermal && normalizedMode === FET_MODE_DISCHARGE,
+    thermal_shutdown: isThermal,
+  };
+}
+
+function normalizeFetStatus(fetStatus, fallback = null) {
+  const base = fallback && typeof fallback === "object" ? fallback : {};
+  const mode = normalizeFetMode(fetStatus?.mode) ?? normalizeFetMode(base.mode);
+  const chargeEnabled = typeof fetStatus?.charge_enabled === "boolean"
+    ? fetStatus.charge_enabled
+    : (typeof base.charge_enabled === "boolean" ? base.charge_enabled : null);
+  const dischargeEnabled = typeof fetStatus?.discharge_enabled === "boolean"
+    ? fetStatus.discharge_enabled
+    : (typeof base.discharge_enabled === "boolean" ? base.discharge_enabled : null);
+  const thermalShutdown = Boolean(fetStatus?.thermal_shutdown ?? base.thermal_shutdown ?? false);
+
+  if (!mode && chargeEnabled === null && dischargeEnabled === null) {
+    return buildFetStatus(null, thermalShutdown);
+  }
+
+  if (mode) {
+    return buildFetStatus(mode, thermalShutdown);
+  }
+
+  if (thermalShutdown) {
+    return buildFetStatus(FET_MODE_OFF, true);
+  }
+
+  if (chargeEnabled === true) return buildFetStatus(FET_MODE_CHARGE, false);
+  if (dischargeEnabled === true) return buildFetStatus(FET_MODE_DISCHARGE, false);
+  if (chargeEnabled === false && dischargeEnabled === false) return buildFetStatus(FET_MODE_OFF, false);
+
+  return buildFetStatus(null, thermalShutdown);
+}
+
+function inferLegacyFetStatus(balStatus) {
+  if (!balStatus || !isFiniteNumber(balStatus.charge)) {
+    return null;
+  }
+  return buildFetStatus(Boolean(balStatus.charge) ? FET_MODE_CHARGE : FET_MODE_DISCHARGE, false);
 }
 
 function populateCellGrid() {
@@ -4112,6 +4172,57 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+function updateFetIndicator(indicatorName, valueEl, enabled) {
+  const indicatorEl = document.querySelector(`[data-fet-indicator="${indicatorName}"]`);
+  if (!valueEl) return;
+
+  indicatorEl?.classList.remove("is-on", "is-off");
+  valueEl.classList.remove("is-on", "is-off");
+
+  if (typeof enabled !== "boolean") {
+    valueEl.textContent = "--";
+    return;
+  }
+
+  valueEl.textContent = enabled ? "ON" : "OFF";
+  valueEl.classList.add(enabled ? "is-on" : "is-off");
+  indicatorEl?.classList.add(enabled ? "is-on" : "is-off");
+}
+
+function syncFetControls(fetStatus) {
+  const normalized = normalizeFetStatus(fetStatus, currentState?.fet_status);
+  const mode = normalizeFetMode(normalized.mode);
+  const thermalShutdown = Boolean(normalized.thermal_shutdown);
+  const chargeEnabled = typeof normalized.charge_enabled === "boolean" ? normalized.charge_enabled : null;
+  const dischargeEnabled = typeof normalized.discharge_enabled === "boolean" ? normalized.discharge_enabled : null;
+
+  if (chargeOnBtn) chargeOnBtn.classList.toggle("active", !thermalShutdown && mode === FET_MODE_CHARGE);
+  if (chargeOffBtn) chargeOffBtn.classList.toggle("active", !thermalShutdown && mode === FET_MODE_DISCHARGE);
+  if (fetDischargeBtn) fetDischargeBtn.classList.toggle("active", !thermalShutdown && mode === FET_MODE_DISCHARGE);
+  if (fetOffBtn) fetOffBtn.classList.toggle("active", !thermalShutdown && mode === FET_MODE_OFF);
+
+  updateFetIndicator("charge", chargeFetStatusEl, chargeEnabled);
+  updateFetIndicator("discharge", dischargeFetStatusEl, dischargeEnabled);
+
+  if (fetThermalNoteEl) {
+    fetThermalNoteEl.hidden = !thermalShutdown;
+  }
+}
+
+function getEloadDacSliderValue() {
+  const slider = document.getElementById("eload-dac-slider");
+  const sliderValue = Number.parseInt(slider?.value ?? "", 10);
+  return Number.isFinite(sliderValue) ? sliderValue : 0;
+}
+
+function resolveEloadEnabled(payloadEnabled, fallbackEnabled = currentState?.eload?.enabled) {
+  if (typeof payloadEnabled === "boolean") return payloadEnabled;
+  if (typeof payloadEnabled === "number") return Boolean(payloadEnabled);
+  const sliderValue = getEloadDacSliderValue();
+  if (sliderValue > 0) return true;
+  return Boolean(fallbackEnabled);
+}
+
 function fanDutyFromAutoTemperature(tempC) {
   const points = [
     { temp: 30, duty: 20 },
@@ -4388,6 +4499,7 @@ function updateHud(data) {
   if (loadPresentEl) {
     loadPresentEl.textContent = isFiniteNumber(data.load_present) ? (data.load_present ? "Yes" : "No") : "--";
   }
+  syncFetControls(data.fet_status);
 
   // Trigger data pulse with speed based on data rate
   if (fan1Rpm > 0) {
@@ -4648,31 +4760,11 @@ function sendBackendCommand(cmd) {
   }
 }
 
-// --- E-Load UI Logic ---
-// Per-channel toggle controls (replaces single eload-toggle)
-const eloadChToggles = [
-  document.getElementById("eload-ch1-toggle"),
-  document.getElementById("eload-ch2-toggle"),
-  document.getElementById("eload-ch3-toggle"),
-  document.getElementById("eload-ch4-toggle"),
-];
-const eloadToggle = { get checked() { return eloadChToggles.some(t => t?.checked); } };  // compat shim
-
-// Telemetry Elements
-const telemVoltage = document.getElementById("telem-voltage");
-const telemIset = document.getElementById("telem-iset");
-const telemDac = document.getElementById("telem-dac");
-const telemVout = document.getElementById("telem-vout");
-const telemEn = document.getElementById("telem-en");
-const telemS1 = document.getElementById("telem-s1");
-const telemS2 = document.getElementById("telem-s2");
-const telemS3 = document.getElementById("telem-s3");
-const telemS4 = document.getElementById("telem-s4");
-
 // Charge Mode Elements
 const chargeOffBtn = document.getElementById("charge-off-btn");
 const chargeOnBtn = document.getElementById("charge-on-btn");
-let isChargeMode = false;
+const fetDischargeBtn = document.getElementById("fet-discharge-btn");
+const fetOffBtn = document.getElementById("fet-off-btn");
 
 // Cell Balancing Elements
 const balOffBtn = document.getElementById("bal-off-btn");
@@ -4719,26 +4811,46 @@ if (balSlider) {
 // Charge Mode Handlers (after balance elements are declared)
 if (chargeOffBtn) {
   chargeOffBtn.addEventListener("click", () => {
-    if (!isChargeMode) return;
-    isChargeMode = false;
-    chargeOffBtn.classList.add("active");
-    if (chargeOnBtn) chargeOnBtn.classList.remove("active");
-    sendBackendCommand("BMS:CHARGE:OFF");
+    if (simulationEnabled) {
+      simulatedFetMode = FET_MODE_DISCHARGE;
+      mockStream();
+    }
+    sendBackendCommand("BMS:DISCHARGE:ON");
   });
 }
 
 if (chargeOnBtn) {
   chargeOnBtn.addEventListener("click", () => {
-    if (isChargeMode) return;
-    isChargeMode = true;
-    chargeOnBtn.classList.add("active");
-    if (chargeOffBtn) chargeOffBtn.classList.remove("active");
     // Deactivate manual balancing when entering charge mode
     isBalEnabled = false;
     if (balAltBtn) balAltBtn.classList.remove("active");
     if (balOffBtn) balOffBtn.classList.add("active");
     if (balControls) balControls.classList.add("disabled");
+    if (simulationEnabled) {
+      simulatedFetMode = FET_MODE_CHARGE;
+      mockStream();
+    }
     sendBackendCommand("BMS:CHARGE:ON");
+  });
+}
+
+if (fetDischargeBtn) {
+  fetDischargeBtn.addEventListener("click", () => {
+    if (simulationEnabled) {
+      simulatedFetMode = FET_MODE_DISCHARGE;
+      mockStream();
+    }
+    sendBackendCommand("BMS:DISCHARGE:ON");
+  });
+}
+
+if (fetOffBtn) {
+  fetOffBtn.addEventListener("click", () => {
+    if (simulationEnabled) {
+      simulatedFetMode = FET_MODE_OFF;
+      mockStream();
+    }
+    sendBackendCommand("BMS:FETS:OFF");
   });
 }
 
@@ -4752,54 +4864,6 @@ const simulateDataToggle = document.getElementById("simulate-data-toggle");
 const simulateDataModeEl = document.getElementById("simulate-data-mode");
 
 let isFanAuto = true;
-
-// -- E-Load Per-Channel Toggle Controls --
-eloadChToggles.forEach((toggle, idx) => {
-  if (!toggle) return;
-  toggle.addEventListener("change", (e) => {
-    const ch = idx + 1;
-    const state = e.target.checked ? 1 : 0;
-    sendBackendCommand(`ELOAD:CH:${ch}:${state}`);
-  });
-});
-
-const eloadAllOnBtn = document.getElementById("eload-all-on");
-const eloadAllOffBtn = document.getElementById("eload-all-off");
-if (eloadAllOnBtn) {
-  eloadAllOnBtn.addEventListener("click", () => {
-    sendBackendCommand("ELOAD:ON");
-    eloadChToggles.forEach((t) => { if (t) t.checked = true; });
-  });
-}
-if (eloadAllOffBtn) {
-  eloadAllOffBtn.addEventListener("click", () => {
-    sendBackendCommand("ELOAD:OFF");
-    eloadChToggles.forEach((t) => { if (t) t.checked = false; });
-  });
-}
-
-// -- E-Load Fan Visualization Controls --
-const eloadFanToggle = document.getElementById("eload-fan-toggle");
-const eloadFanSpeedSlider = document.getElementById("eload-fan-speed-slider");
-const eloadFanSpeedValue = document.getElementById("eload-fan-speed-value");
-const eloadFanSpeedControls = document.getElementById("eload-fan-speed-controls");
-
-if (eloadFanToggle) {
-  eloadFanToggle.addEventListener("change", (e) => {
-    eloadFanSpinEnabled = e.target.checked;
-    if (eloadFanSpeedControls) {
-      eloadFanSpeedControls.classList.toggle("disabled", !eloadFanSpinEnabled);
-    }
-  });
-}
-
-if (eloadFanSpeedSlider) {
-  eloadFanSpeedSlider.addEventListener("input", (e) => {
-    const val = parseFloat(e.target.value);
-    eloadFanSpinSpeed = val / 100;
-    if (eloadFanSpeedValue) eloadFanSpeedValue.textContent = `${Math.round(val)}%`;
-  });
-}
 
 // -- E-Load Heat Visualization Controls --
 const eloadHeatToggle = document.getElementById("eload-heat-toggle");
@@ -5002,67 +5066,6 @@ function normalizeCells(cells) {
 }
 
 function updateEloadTelemetry(eload) {
-  // I_SET display (in mV)
-  if (telemIset && isFiniteNumber(eload?.i_set)) {
-    telemIset.textContent = `${eload.i_set.toFixed(1)} mV`;
-  } else if (telemIset) {
-    telemIset.textContent = "-- mV";
-  }
-
-  // DAC code display
-  if (telemDac && isFiniteNumber(eload?.dac)) {
-    telemDac.textContent = `${Math.round(eload.dac)}`;
-  } else if (telemDac) {
-    telemDac.textContent = "--";
-  }
-
-  // VOUT (DAC output voltage) display
-  if (telemVout && isFiniteNumber(eload?.vout)) {
-    telemVout.textContent = `${(eload.vout * 1000).toFixed(0)} mV`;
-  } else if (telemVout) {
-    telemVout.textContent = "-- mV";
-  }
-
-  // VSENSE display (in mV)
-  if (telemVoltage && isFiniteNumber(eload?.v)) {
-    telemVoltage.textContent = `${(eload.v * 1000).toFixed(0)} mV`;
-  } else if (telemVoltage) {
-    telemVoltage.textContent = "-- mV";
-  }
-
-  // S1-S4 sense channels in mV
-  if (telemS1 && isFiniteNumber(eload?.s1)) {
-    telemS1.textContent = `${(eload.s1 * 1000).toFixed(0)} mV`;
-  } else if (telemS1) { telemS1.textContent = "-- mV"; }
-  if (telemS2 && isFiniteNumber(eload?.s2)) {
-    telemS2.textContent = `${(eload.s2 * 1000).toFixed(0)} mV`;
-  } else if (telemS2) { telemS2.textContent = "-- mV"; }
-  if (telemS3 && isFiniteNumber(eload?.s3)) {
-    telemS3.textContent = `${(eload.s3 * 1000).toFixed(0)} mV`;
-  } else if (telemS3) { telemS3.textContent = "-- mV"; }
-  if (telemS4 && isFiniteNumber(eload?.s4)) {
-    telemS4.textContent = `${(eload.s4 * 1000).toFixed(0)} mV`;
-  } else if (telemS4) { telemS4.textContent = "-- mV"; }
-
-  // EN status display (derived from per-channel states)
-  if (telemEn) {
-    const anyOn = eload?.ch1 || eload?.ch2 || eload?.ch3 || eload?.ch4 || eload?.enabled;
-    if (anyOn !== undefined) {
-      telemEn.textContent = anyOn ? "ACTIVE" : "ALL OFF";
-      telemEn.style.color = anyOn ? "var(--success-color, #30d158)" : "var(--danger-color, #ff453a)";
-    } else {
-      telemEn.textContent = "--";
-      telemEn.style.color = "";
-    }
-  }
-
-  // Sync per-channel toggles with telemetry
-  ["ch1", "ch2", "ch3", "ch4"].forEach((ch, idx) => {
-    if (typeof eload?.[ch] === "boolean" && eloadChToggles[idx]) {
-      eloadChToggles[idx].checked = eload[ch];
-    }
-  });
-
   // Push to shunt history circular buffers and redraw trend graphs
   ["s1", "s2", "s3", "s4"].forEach((ch) => {
     if (isFiniteNumber(eload?.[ch])) {
@@ -5074,25 +5077,6 @@ function updateEloadTelemetry(eload) {
       drawEloadShuntTrend(ch);
     }
   });
-
-
-  // Power summary cards
-  const eloadActualVoltageEl = document.getElementById("eload-actual-voltage");
-  const eloadActualCurrentEl = document.getElementById("eload-actual-current");
-  const eloadPowerEl = document.getElementById("eload-power");
-
-  if (eloadActualVoltageEl) {
-    eloadActualVoltageEl.textContent = isFiniteNumber(eload?.v)
-      ? `${(eload.v * 1000).toFixed(0)} mV` : "-- mV";
-  }
-  if (eloadActualCurrentEl) {
-    eloadActualCurrentEl.textContent = isFiniteNumber(eload?.i_set)
-      ? `${eload.i_set.toFixed(1)} mV` : "-- mV";
-  }
-  if (eloadPowerEl) {
-    eloadPowerEl.textContent = isFiniteNumber(eload?.vout)
-      ? `${(eload.vout * 1000).toFixed(0)} mV` : "-- mV";
-  }
 
   // Drive thermal visualization from I_SET as proxy for heat
   // (actual current not measurable with 1mOhm shunts)
@@ -5200,7 +5184,7 @@ function flushDashboardData() {
   if (data.eload) {
     const e = data.eload;
     currentState.eload = {
-      enabled: Boolean(e.enabled),
+      enabled: resolveEloadEnabled(e.enabled, currentState.eload?.enabled),
       i_set: isFiniteNumber(e.i_set) ? Number(e.i_set) : currentState.eload?.i_set || 0,
       dac: isFiniteNumber(e.dac) ? Number(e.dac) : currentState.eload?.dac || 0,
       vout: isFiniteNumber(e.vout) ? Number(e.vout) : currentState.eload?.vout || 0,
@@ -5210,10 +5194,6 @@ function flushDashboardData() {
       s3: isFiniteNumber(e.s3) ? Number(e.s3) : currentState.eload?.s3 || 0,
       s4: isFiniteNumber(e.s4) ? Number(e.s4) : currentState.eload?.s4 || 0,
       v_set: isFiniteNumber(e.v_set) ? Number(e.v_set) : currentState.eload?.v_set || 0,
-      ch1: typeof e.ch1 === "boolean" ? e.ch1 : currentState.eload?.ch1 ?? true,
-      ch2: typeof e.ch2 === "boolean" ? e.ch2 : currentState.eload?.ch2 ?? true,
-      ch3: typeof e.ch3 === "boolean" ? e.ch3 : currentState.eload?.ch3 ?? true,
-      ch4: typeof e.ch4 === "boolean" ? e.ch4 : currentState.eload?.ch4 ?? true,
     };
 
     // Trigger E-Load reveal on first real telemetry (or when connected)
@@ -5239,15 +5219,12 @@ function flushDashboardData() {
     }
   }
 
-  if (data.bal_status && isFiniteNumber(data.bal_status.charge)) {
-    const chg = Boolean(data.bal_status.charge);
-    isChargeMode = chg;
-    if (chg) {
-      if (chargeOnBtn) chargeOnBtn.classList.add("active");
-      if (chargeOffBtn) chargeOffBtn.classList.remove("active");
-    } else {
-      if (chargeOffBtn) chargeOffBtn.classList.add("active");
-      if (chargeOnBtn) chargeOnBtn.classList.remove("active");
+  if (data.fet_status) {
+    currentState.fet_status = normalizeFetStatus(data.fet_status, currentState.fet_status);
+  } else {
+    const legacyFetStatus = inferLegacyFetStatus(data.bal_status);
+    if (legacyFetStatus) {
+      currentState.fet_status = legacyFetStatus;
     }
   }
 
@@ -5285,10 +5262,9 @@ function mockStream() {
     temperature: Number((24 + Math.random() * 6).toFixed(1)),
   }));
   const mockCurrent = Number(((Math.random() - 0.5) * 0.2).toFixed(3));
-  const mockVoltage = Number((36 + Math.random() * 2).toFixed(2));
-  const mockActualCurrent = Math.max(0, Math.abs(mockCurrent));
   const simulatedDuty = simulationFanDutyFromCells(cells);
   const simulatedRpm = estimateRpmFromDuty(simulatedDuty);
+  const dacValue = getEloadDacSliderValue();
 
   window.updateDashboard({
     __simulated: true,
@@ -5300,9 +5276,10 @@ function mockStream() {
       auto: isFanAuto,
       duty: simulatedDuty,
     },
+    fet_status: buildFetStatus(simulatedFetMode),
     eload: {
-      enabled: eloadToggle.checked,
-      dac: 0,
+      enabled: dacValue > 0,
+      dac: dacValue,
       i_set: 0,
       vout: 0,
       v: 5.0 + (Math.random() - 0.5) * 0.1,
@@ -5351,6 +5328,7 @@ function setSimulationMode(enabled) {
   }
 
   if (simulationEnabled) {
+    simulatedFetMode = normalizeFetMode(currentState?.fet_status?.mode) || FET_MODE_DISCHARGE;
     setConnectionStatus(true, "simulation");
     applySimulationStatusIndicator(STATUS_SIMULATION);
     mockStream();
@@ -5495,12 +5473,21 @@ if (eloadDacSlider) {
     const val = event.target.value;
     if (eloadDacValue) eloadDacValue.textContent = val;
     updateSliderUI(event.target);
+    if (simulationEnabled) {
+      mockStream();
+    }
+    if (eloadSimulationEnabled) {
+      mockEloadStream();
+    }
   });
 
   eloadDacSlider.addEventListener("change", (event) => {
     // Send to firmware only when the drag is complete (mouse up)
     const val = event.target.value;
     sendBackendCommand(`ELOAD:DAC:${val}`);
+    if (eloadSimulationEnabled) {
+      mockEloadStream();
+    }
   });
 }
 
@@ -5513,9 +5500,10 @@ let eloadSimulationEnabled = false;
 let eloadSimulationIntervalId = null;
 
 function mockEloadStream() {
+  const dacValue = getEloadDacSliderValue();
   const eloadData = {
-    enabled: eloadToggle.checked,
-    dac: 0,
+    enabled: dacValue > 0,
+    dac: dacValue,
     vout: 0,
     i_set: 0,
     v: 5.0 + (Math.random() - 0.5) * 0.1,  // VSENSE ~5V USB
@@ -5524,10 +5512,6 @@ function mockEloadStream() {
     s3: Math.random() * 0.002,
     s4: Math.random() * 0.002,
     v_set: 0,
-    ch1: eloadChToggles[0]?.checked ?? true,
-    ch2: eloadChToggles[1]?.checked ?? true,
-    ch3: eloadChToggles[2]?.checked ?? true,
-    ch4: eloadChToggles[3]?.checked ?? true,
   };
 
   updateEloadTelemetry(eloadData);
@@ -5848,10 +5832,6 @@ markBootUiReady();
             s4: (pairs.s4 || 0) / 1000.0,
             enabled: Boolean(anyOn),
             v_set: 0,
-            ch1: Boolean(pairs.ch1),
-            ch2: Boolean(pairs.ch2),
-            ch3: Boolean(pairs.ch3),
-            ch4: Boolean(pairs.ch4),
           };
           window.updateDashboard?.({ eload: eloadPayload });
         }

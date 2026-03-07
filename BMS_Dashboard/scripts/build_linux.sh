@@ -21,6 +21,7 @@ pyinstaller \
   --name "BMSDashboard" \
   --icon "assets/icons/app_icon.png" \
   --add-data "frontend:frontend" \
+  --add-data "BMS.glb:." \
   --add-data "assets/icons:assets/icons" \
   --add-data "backend/update_helper.py:backend" \
   gui_launcher.py

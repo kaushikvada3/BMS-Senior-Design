@@ -16,6 +16,7 @@ import threading
 import time
 from pathlib import Path
 from typing import Any, Optional
+from urllib.parse import urlparse
 
 from packaging.version import InvalidVersion, Version
 
@@ -583,19 +584,6 @@ class DashboardWindow(QMainWindow):
                     pass
             print(f"[CMD-POLL] Invalid DAC command: {cmd!r}", flush=True)
             return None
-        elif cmd.startswith("ELOAD:CH:"):
-            # ELOAD:CH:1:1  or  ELOAD:CH:3:0  — per-channel toggle
-            parts = cmd.split(":")
-            if len(parts) == 4:
-                try:
-                    ch = int(parts[2])
-                    state = int(parts[3])
-                    if 1 <= ch <= 4 and state in (0, 1):
-                        return f"L {ch} {state}"
-                except ValueError:
-                    pass
-            print(f"[CMD-POLL] Invalid channel command: {cmd!r}", flush=True)
-            return None
         else:
             print(f"[CMD-POLL] Unknown ELOAD command: {cmd!r}", flush=True)
             return None
@@ -904,10 +892,20 @@ class DashboardWindow(QMainWindow):
 
     def start_http_server(self) -> None:
         frontend_dir = self.entrypoint.parent
+        runtime_assets = {
+            "/runtime-assets/BMS.glb": resolve_resource("BMS.glb"),
+        }
 
         class Handler(http.server.SimpleHTTPRequestHandler):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, directory=str(frontend_dir), **kwargs)
+
+            def translate_path(self, path: str) -> str:
+                parsed_path = urlparse(path).path
+                runtime_asset = runtime_assets.get(parsed_path)
+                if runtime_asset is not None:
+                    return str(runtime_asset)
+                return super().translate_path(path)
 
             def log_message(self, fmt, *args):
                 return
