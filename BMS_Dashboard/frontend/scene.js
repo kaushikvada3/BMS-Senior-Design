@@ -4821,7 +4821,6 @@ function sendBackendCommand(cmd) {
   }
 }
 
-<<<<<<< HEAD
 // --- E-Load UI Logic ---
 // (E-Load Control channel toggles removed from UI)
 const eloadChToggles = [null, null, null, null];
@@ -4838,8 +4837,6 @@ const telemS2 = document.getElementById("telem-s2");
 const telemS3 = document.getElementById("telem-s3");
 const telemS4 = document.getElementById("telem-s4");
 
-=======
->>>>>>> f13dff7fc1b3c782c87599d23620674f7976d430
 // Charge Mode Elements
 const chargeOffBtn = document.getElementById("charge-off-btn");
 const chargeOnBtn = document.getElementById("charge-on-btn");
@@ -4954,7 +4951,6 @@ let _eloadFanThrottleTimer = 0;
 
 let isFanAuto = true;
 
-<<<<<<< HEAD
 
 
 // -- E-Load Fan Visualization Controls --
@@ -5029,8 +5025,6 @@ if (eloadFanSlider) {
   });
 }
 
-=======
->>>>>>> f13dff7fc1b3c782c87599d23620674f7976d430
 // -- E-Load Heat Visualization Controls --
 const eloadHeatToggle = document.getElementById("eload-heat-toggle");
 const eloadHeatIntensitySlider = document.getElementById("eload-heat-intensity-slider");
@@ -5232,7 +5226,6 @@ function normalizeCells(cells) {
 }
 
 function updateEloadTelemetry(eload) {
-<<<<<<< HEAD
   // I_SET display (in mV)
   if (telemIset && isFiniteNumber(eload?.i_set)) {
     telemIset.textContent = `${eload.i_set.toFixed(1)} mV`;
@@ -5296,14 +5289,11 @@ function updateEloadTelemetry(eload) {
 
   // (Per-channel toggle sync removed — E-Load Control UI removed)
 
-=======
->>>>>>> f13dff7fc1b3c782c87599d23620674f7976d430
   // Push to shunt history circular buffers and redraw trend graphs
   ["s1", "s2", "s3", "s4"].forEach((ch) => {
     // (Shunt current trend graphs removed)
   });
 
-<<<<<<< HEAD
   // Power summary cards
   const eloadActualVoltageEl = document.getElementById("eload-actual-voltage");
   const eloadActualCurrentEl = document.getElementById("eload-actual-current");
@@ -5322,8 +5312,6 @@ function updateEloadTelemetry(eload) {
       ? `${(eload.vout * 1000).toFixed(0)} mV` : "-- mV";
   }
 
-=======
->>>>>>> f13dff7fc1b3c782c87599d23620674f7976d430
   // Drive thermal visualization from I_SET as proxy for heat
   // (actual current not measurable with 1mOhm shunts)
   // I_SET range: 0-185.6 mV → normalize to 0-1
@@ -5436,7 +5424,6 @@ function flushDashboardData() {
       s3: isFiniteNumber(e.s3) ? Number(e.s3) : currentState.eload?.s3 || 0,
       s4: isFiniteNumber(e.s4) ? Number(e.s4) : currentState.eload?.s4 || 0,
       v_set: isFiniteNumber(e.v_set) ? Number(e.v_set) : currentState.eload?.v_set || 0,
-<<<<<<< HEAD
       ch1: typeof e.ch1 === "boolean" ? e.ch1 : currentState.eload?.ch1 ?? true,
       ch2: typeof e.ch2 === "boolean" ? e.ch2 : currentState.eload?.ch2 ?? true,
       ch3: typeof e.ch3 === "boolean" ? e.ch3 : currentState.eload?.ch3 ?? true,
@@ -5445,8 +5432,6 @@ function flushDashboardData() {
         duty: isFiniteNumber(e.fan_ctrl.duty) ? Number(e.fan_ctrl.duty) : 0,
         rpm: isFiniteNumber(e.fan_ctrl.rpm) ? Number(e.fan_ctrl.rpm) : 0,
       } : currentState.eload?.fan_ctrl || { duty: 0, rpm: 0 },
-=======
->>>>>>> f13dff7fc1b3c782c87599d23620674f7976d430
     };
 
     // Update E-Load Fan Slider UI if duty came from telemetry
@@ -5754,19 +5739,7 @@ function updateDacUI(rawVal) {
 if (eloadDacSlider) {
   eloadDacSlider.addEventListener("input", (event) => {
     // Update local UI immediately while dragging
-<<<<<<< HEAD
     updateDacUI(event.target.value);
-=======
-    const val = event.target.value;
-    if (eloadDacValue) eloadDacValue.textContent = val;
-    updateSliderUI(event.target);
-    if (simulationEnabled) {
-      mockStream();
-    }
-    if (eloadSimulationEnabled) {
-      mockEloadStream();
-    }
->>>>>>> f13dff7fc1b3c782c87599d23620674f7976d430
   });
 
   eloadDacSlider.addEventListener("change", (event) => {
@@ -5834,13 +5807,10 @@ function mockEloadStream() {
     s3: Math.random() * 0.002,
     s4: Math.random() * 0.002,
     v_set: 0,
-<<<<<<< HEAD
     ch1: true,
     ch2: true,
     ch3: true,
     ch4: true,
-=======
->>>>>>> f13dff7fc1b3c782c87599d23620674f7976d430
   };
 
   updateEloadTelemetry(eloadData);

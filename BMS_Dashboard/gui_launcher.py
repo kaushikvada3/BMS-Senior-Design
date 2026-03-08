@@ -616,7 +616,6 @@ class DashboardWindow(QMainWindow):
                     pass
             print(f"[CMD-POLL] Invalid DAC command: {cmd!r}", flush=True)
             return None
-<<<<<<< HEAD
         elif cmd.startswith("ELOAD:CH:"):
             # ELOAD:CH:1:1  or  ELOAD:CH:3:0  — per-channel toggle
             parts = cmd.split(":")
@@ -642,8 +641,6 @@ class DashboardWindow(QMainWindow):
                     pass
             print(f"[CMD-POLL] Invalid Fan command: {cmd!r}", flush=True)
             return None
-=======
->>>>>>> f13dff7fc1b3c782c87599d23620674f7976d430
         else:
             print(f"[CMD-POLL] Unknown ELOAD command: {cmd!r}", flush=True)
             return None
