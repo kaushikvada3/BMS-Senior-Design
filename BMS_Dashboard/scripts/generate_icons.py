@@ -16,6 +16,24 @@ except ImportError as exc:
 
 ICO_SIZES = [(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
 ICNS_SIZES = [16, 32, 64, 128, 256, 512, 1024]
+ICON_CANVAS_SIZE = 1024
+ICON_PADDING_RATIO = 0.12
+
+
+def _prepare_icon_image(image: Image.Image, size: int = ICON_CANVAS_SIZE) -> Image.Image:
+    canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    max_inner = int(round(size * (1.0 - (ICON_PADDING_RATIO * 2.0))))
+    scale = min(max_inner / image.width, max_inner / image.height)
+    resized = image.resize(
+        (
+            max(1, int(round(image.width * scale))),
+            max(1, int(round(image.height * scale))),
+        ),
+        Image.Resampling.LANCZOS,
+    )
+    offset = ((size - resized.width) // 2, (size - resized.height) // 2)
+    canvas.alpha_composite(resized, offset)
+    return canvas
 
 
 def _save_icns_with_iconutil(image: Image.Image, output: Path) -> None:
@@ -45,13 +63,13 @@ def generate_icons(input_path: Path, output_dir: Path, require_icns: bool) -> No
         raise FileNotFoundError(f"Input logo not found: {input_path}")
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    image = Image.open(input_path).convert("RGBA")
+    image = _prepare_icon_image(Image.open(input_path).convert("RGBA"))
 
     png_out = output_dir / "app_icon.png"
     ico_out = output_dir / "app_icon.ico"
     icns_out = output_dir / "app_icon.icns"
 
-    image.resize((1024, 1024), Image.Resampling.LANCZOS).save(png_out, format="PNG")
+    image.save(png_out, format="PNG")
     image.save(ico_out, format="ICO", sizes=ICO_SIZES)
 
     icns_error = None
@@ -83,8 +101,8 @@ def main() -> int:
     parser.add_argument(
         "--input",
         type=Path,
-        default=Path("BMS Logo.png"),
-        help="Input logo PNG path (default: BMS Logo.png).",
+        default=Path("BMS Logo (new).png"),
+        help="Input logo PNG path (default: BMS Logo (new).png).",
     )
     parser.add_argument(
         "--output-dir",

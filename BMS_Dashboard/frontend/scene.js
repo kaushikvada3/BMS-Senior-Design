@@ -1,8 +1,10 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { createBootLiquidRenderer } from "./boot-liquid.js";
 
 const { gsap } = window;
+const EXTERNAL_SPLASH_MODE = new URLSearchParams(window.location.search).get("externalSplash") === "1";
 
 // --- Configuration ---
 const MODEL_PATH = "/runtime-assets/BMS.glb";
@@ -50,12 +52,17 @@ const BOOT_REVEAL_HOLD_MS = 450;
 const BOOT_REVEAL_DURATION_MS = 1600;
 
 const bootLoaderEl = document.getElementById("boot-loader");
+const bootLiquidCanvasEl = document.getElementById("boot-liquid-canvas");
 const bootProgressFillEl = document.getElementById("boot-progress-fill");
 const bootPercentEl = document.getElementById("boot-percent");
 const bootStageEl = document.getElementById("boot-stage");
 const bootDetailEl = document.getElementById("boot-detail");
 const chromeMaskEl = document.getElementById("chrome-mask");
 const chromeMaskBarEl = document.querySelector(".chrome-mask__bar");
+
+if (EXTERNAL_SPLASH_MODE) {
+  document.body.classList.add("external-splash");
+}
 
 const bootState = {
   stage: "bootstrap",
@@ -79,6 +86,7 @@ const bootState = {
 };
 let bootRevealHoldTimer = 0;
 let startupConnectionTarget = false;
+let bootLiquid = null;
 
 function clamp01(value) {
   return Math.max(0, Math.min(1, Number(value) || 0));
@@ -169,10 +177,65 @@ function maybeFinishBootLoader() {
     window.clearTimeout(bootRevealHoldTimer);
     bootRevealHoldTimer = 0;
   }
+
+  if (EXTERNAL_SPLASH_MODE) {
+    completeBootLoaderImmediately();
+    return;
+  }
+
   bootRevealHoldTimer = window.setTimeout(() => {
     bootRevealHoldTimer = 0;
     runRevealSequence();
   }, BOOT_REVEAL_HOLD_MS);
+}
+
+function destroyBootLiquidRenderer() {
+  if (!bootLiquid) return;
+  bootLiquid.destroy();
+  bootLiquid = null;
+}
+
+function completeBootLoaderImmediately() {
+  if (bootState.hidden && (!bootLoaderEl || !bootLoaderEl.isConnected)) {
+    return;
+  }
+
+  const sceneCanvas = document.getElementById("scene");
+  const hudRoot = document.querySelector(".hud");
+
+  const startupBlend = startupConnectionTarget ? 1 : 0;
+  connectionVisualProgress = startupBlend;
+  connectionTransitionFrom = startupBlend;
+  connectionTransitionTo = startupBlend;
+  connectionTransitionActive = false;
+  applyShellTransparency(startupBlend);
+  applyModelConnectionPose(startupBlend);
+
+  bootState.chromeCueSent = true;
+  bootState.hideStarted = true;
+  bootState.handoffProgress = 1;
+  bootState.hidden = true;
+  bootState.phase = "complete";
+
+  document.body.classList.add("boot-chrome-cue");
+  document.body.classList.remove("is-booting", "is-revealing");
+  destroyBootLiquidRenderer();
+  if (bootLoaderEl && bootLoaderEl.isConnected) {
+    bootLoaderEl.remove();
+  }
+
+  if (hudRoot) {
+    hudRoot.style.visibility = "visible";
+    hudRoot.style.opacity = "1";
+  }
+  if (sceneCanvas) {
+    sceneCanvas.style.visibility = "visible";
+    sceneCanvas.style.opacity = "1";
+  }
+  if (chromeMaskBarEl) {
+    chromeMaskBarEl.style.opacity = "0";
+    chromeMaskBarEl.style.transform = "translateY(-18px)";
+  }
 }
 
 function runRevealSequence() {
@@ -181,45 +244,10 @@ function runRevealSequence() {
   const loaderMetaEl = document.querySelector(".boot-loader__meta");
   const sceneCanvas = document.getElementById("scene");
   const hudRoot = document.querySelector(".hud");
-  const detailPanel = document.querySelector(".detail-panel");
   const header = document.querySelector(".hud__header");
 
-  const finishImmediately = () => {
-    const startupBlend = startupConnectionTarget ? 1 : 0;
-    connectionVisualProgress = startupBlend;
-    connectionTransitionFrom = startupBlend;
-    connectionTransitionTo = startupBlend;
-    connectionTransitionActive = false;
-    applyShellTransparency(startupBlend);
-    applyModelConnectionPose(startupBlend);
-
-    bootState.chromeCueSent = true;
-    bootState.handoffProgress = 1;
-    bootState.hidden = true;
-    bootState.phase = "complete";
-    document.body.classList.add("boot-chrome-cue");
-    document.body.classList.remove("is-booting", "is-revealing");
-    if (bootLoaderEl) bootLoaderEl.remove();
-    if (hudRoot) {
-      hudRoot.style.visibility = "visible";
-      hudRoot.style.opacity = "1";
-    }
-    if (detailPanel) {
-      detailPanel.style.visibility = "visible";
-      detailPanel.style.opacity = "1";
-    }
-    if (sceneCanvas) {
-      sceneCanvas.style.visibility = "visible";
-      sceneCanvas.style.opacity = "1";
-    }
-    if (chromeMaskBarEl) {
-      chromeMaskBarEl.style.opacity = "0";
-      chromeMaskBarEl.style.transform = "translateY(-18px)";
-    }
-  };
-
   if (!bootLoaderEl || !gsap) {
-    finishImmediately();
+    completeBootLoaderImmediately();
     return;
   }
 
@@ -252,14 +280,13 @@ function runRevealSequence() {
 
   const allAnimTargets = [
     loaderContent, bootStageEl, loaderBarEl, loaderMetaEl,
-    hudRoot, detailPanel, header, statusEl,
+    hudRoot, header, statusEl,
     chromeMaskEl, chromeMaskBarEl, ...leftPanels, ...rightPanels,
   ].filter(Boolean);
   gsap.set(allAnimTargets, { willChange: "transform, opacity" });
 
   if (sceneCanvas) gsap.set(sceneCanvas, { visibility: "visible", opacity: 1 });
   if (hudRoot) gsap.set(hudRoot, { visibility: "visible", opacity: 0 });
-  if (detailPanel) gsap.set(detailPanel, { visibility: "visible", opacity: 0 });
   if (chromeMaskBarEl) gsap.set(chromeMaskBarEl, { opacity: 1, y: 0 });
 
   const cameraBlend = { t: 0 };
@@ -282,9 +309,10 @@ function runRevealSequence() {
       bootState.handoffProgress = 1;
       document.body.classList.remove("is-revealing");
       gsap.set(allAnimTargets, { willChange: "auto", clearProps: "willChange" });
-      if (bootLoaderEl) bootLoaderEl.remove();
+      destroyBootLiquidRenderer();
+      if (bootLoaderEl && bootLoaderEl.isConnected) bootLoaderEl.remove();
       gsap.set(
-        [sceneCanvas, hudRoot, detailPanel, header, statusEl, ...leftPanels, ...rightPanels].filter(Boolean),
+        [sceneCanvas, hudRoot, header, statusEl, ...leftPanels, ...rightPanels].filter(Boolean),
         { clearProps: "all" },
       );
       if (chromeMaskBarEl) {
@@ -450,6 +478,17 @@ function setBootError(message, error = null) {
   }
 }
 
+window.__bmsDismissBootLoader = function __bmsDismissBootLoader(reason) {
+  if (reason) {
+    console.warn(`[BMS] Forcing boot overlay dismissal: ${reason}`);
+  }
+  completeBootLoaderImmediately();
+  return {
+    ok: true,
+    reason: reason || "forced",
+  };
+};
+
 window.__bmsSetStartupConnectionTarget = function __bmsSetStartupConnectionTarget(connected) {
   startupConnectionTarget = Boolean(connected);
   return {
@@ -461,6 +500,8 @@ window.__bmsSetStartupConnectionTarget = function __bmsSetStartupConnectionTarge
 window.__bmsBootDebug = function __bmsBootDebug() {
   return {
     stage: bootState.stage,
+    stageLabel: bootStageEl ? bootStageEl.textContent : "",
+    detail: bootState.detail,
     percent: Number(computeBootPercent().toFixed(2)),
     bytesLoaded: bootState.bytesLoaded,
     bytesTotal: bootState.bytesTotal,
@@ -491,6 +532,23 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.2;
+
+if (!EXTERNAL_SPLASH_MODE && bootLiquidCanvasEl) {
+  const initialBootLiquid = createBootLiquidRenderer({
+    canvas: bootLiquidCanvasEl,
+    sourceCanvas: canvas,
+  });
+  if (initialBootLiquid.ready) {
+    bootLiquid = initialBootLiquid;
+    document.body.classList.remove("boot-liquid-fallback");
+  } else {
+    bootLiquid = null;
+    document.body.classList.add("boot-liquid-fallback");
+  }
+} else {
+  bootLiquid = null;
+  document.body.classList.add("boot-liquid-fallback");
+}
 
 const scene = new THREE.Scene();
 // No background color - let CSS gradient show through
@@ -4652,6 +4710,9 @@ function tick() {
 
     animateCells(delta);
     renderer.render(scene, camera);
+    if (bootLiquid) {
+      bootLiquid.render(performance.now());
+    }
     updatePartPopupFrame();
     refreshPartPopupData();
   } else if (activePageId === "eload" && eloadRenderer && eloadScene && eloadCamera) {
@@ -5370,6 +5431,9 @@ function onWindowResize() {
   camera.updateProjectionMatrix();
   renderer.setSize(width, height);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  if (bootLiquid) {
+    bootLiquid.resize();
+  }
 
   // Also resize E-Load renderer
   if (eloadRenderer && eloadCamera) {

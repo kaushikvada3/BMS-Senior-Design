@@ -24,15 +24,20 @@
 <body class="is-booting">
   <div id="boot-loader" role="status" aria-live="polite" aria-label="Loading BMS Dashboard">
     <div id="boot-loader-content">
-      <img src="assets/branding/bms-logo.png" alt="BMS Logo" class="boot-loader__logo" />
+      <canvas id="boot-liquid-canvas" class="boot-loader__liquid" aria-hidden="true"></canvas>
+      <div class="boot-loader__shine" aria-hidden="true"></div>
+      <div class="boot-loader__logo-frame">
+        <img src="/runtime-assets/startup-logo.png" alt="BMS Logo" class="boot-loader__logo" />
+      </div>
       <p id="boot-stage" class="boot-loader__stage">Initializing Dashboard</p>
-
       <div class="boot-loader__meta">
         <span id="boot-detail" class="boot-loader__detail">Loading assets...</span>
         <span id="boot-percent" class="boot-loader__percent">0%</span>
       </div>
-      <div class="boot-loader__bar" aria-hidden="true">
-        <div id="boot-progress-fill" class="boot-loader__fill"></div>
+      <div class="boot-loader__bar-shell" aria-hidden="true">
+        <div class="boot-loader__bar">
+          <div id="boot-progress-fill" class="boot-loader__fill"></div>
+        </div>
       </div>
     </div>
   </div>

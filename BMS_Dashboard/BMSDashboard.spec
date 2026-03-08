@@ -5,7 +5,7 @@ a = Analysis(
     ['gui_launcher.py'],
     pathex=[],
     binaries=[],
-    datas=[('frontend', 'frontend'), ('assets/icons', 'assets/icons'), ('BMS.glb', '.')],
+    datas=[('frontend', 'frontend'), ('assets/icons', 'assets/icons'), ('BMS.glb', '.'), ('BMS Logo (new).png', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
