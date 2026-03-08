@@ -449,6 +449,11 @@ int main(void)
   __HAL_TIM_ENABLE_IT(&htim3, TIM_IT_UPDATE);  // Enable overflow interrupt for low-RPM tracking
   fan_tach_last_tick = HAL_GetTick();
 
+  HAL_GPIO_WritePin(BMS_BOOT_GPIO_Port, BMS_BOOT_Pin, GPIO_PIN_SET);
+  HAL_Delay(2);
+  HAL_GPIO_WritePin(BMS_BOOT_GPIO_Port, BMS_BOOT_Pin, GPIO_PIN_RESET);
+  HAL_Delay(420);
+
   // Initial Scan
   Discover_BMS();
 
@@ -1242,6 +1247,14 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
+
+  HAL_GPIO_WritePin(BMS_BOOT_GPIO_Port, BMS_BOOT_Pin, GPIO_PIN_RESET);
+
+  GPIO_InitStruct.Pin = BMS_BOOT_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(BMS_BOOT_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE END MX_GPIO_Init_2 */
 }
