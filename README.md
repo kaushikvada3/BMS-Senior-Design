@@ -2,6 +2,17 @@
 
 This repository contains the software, firmware, assets, and release tooling for the UCR Battery Management System senior design project.
 
+## Download (Latest Desktop App)
+
+Direct download links for the packaged BMS Dashboard:
+
+- Windows `.exe`: [Download Windows Installer](https://github.com/kaushikvada3/BMS-Senior-Design/releases/latest/download/BMSDashboard-windows-x64-setup.exe)
+- macOS `.dmg`: [Download macOS DMG](https://github.com/kaushikvada3/BMS-Senior-Design/releases/latest/download/BMSDashboard-macos-universal2.dmg)
+
+Latest release page:
+
+- https://github.com/kaushikvada3/BMS-Senior-Design/releases
+
 At a high level, the repo is organized around three working areas:
 
 1. `BMS_Dashboard/`
