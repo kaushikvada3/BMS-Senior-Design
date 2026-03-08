@@ -21,7 +21,7 @@ The project is a full-stack battery-management tooling repo:
 - The BMS firmware publishes telemetry such as cell voltages, thermistors, current, fan state, balancing state, and FET state.
 - The electronic load firmware exposes load-channel and DAC-related control/telemetry.
 - The dashboard parses serial output from the boards, converts it into frontend-friendly JSON, and renders the pack state with a 3D model and glass-style UI.
-- Release tooling packages the dashboard into Windows, macOS, and Linux desktop builds and publishes release metadata for in-app updates.
+- Release tooling packages the dashboard into Windows and macOS desktop builds for GitHub Releases, while keeping local Linux packaging available, and publishes release metadata for in-app updates.
 
 ## Repository Map
 
@@ -372,14 +372,14 @@ It defines:
 - executable replacement behavior,
 - shortcuts and uninstall registry entries.
 
-#### `BMS_Dashboard/.github/workflows/release.yml`
+#### `.github/workflows/bms-dashboard-release.yml`
 
 GitHub Actions workflow for tagged desktop releases.
 
 It:
 
 - validates the version tag,
-- builds Windows/macOS/Linux packages,
+- builds Windows and macOS packages from `BMS_Dashboard/`,
 - uploads intermediate artifacts,
 - generates release notes and the release manifest,
 - publishes the GitHub Release.
@@ -588,12 +588,12 @@ From `BMS_Dashboard/`:
 
 Tagged releases are handled by:
 
-- `BMS_Dashboard/.github/workflows/release.yml`
+- `.github/workflows/bms-dashboard-release.yml`
 
 Expected versioning flow:
 
 1. Update `BMS_Dashboard/backend/version.py`
-2. Push a matching semantic version tag such as `v2.0.6`
+2. Push a matching dashboard release tag such as `bms-dashboard-v2.0.6`
 3. GitHub Actions builds and publishes the release assets
 
 For the full release checklist, see:

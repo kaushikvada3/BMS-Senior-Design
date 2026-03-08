@@ -1,0 +1,228 @@
+name: Release BMS Dashboard
+
+on:
+  push:
+    tags:
+      - "bms-dashboard-v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Dashboard release tag, for example bms-dashboard-v2.0.6"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  TAG_NAME: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag_name || github.ref_name }}
+
+defaults:
+  run:
+    working-directory: BMS_Dashboard
+
+jobs:
+  validate-version:
+    runs-on: ubuntu-22.04
+    outputs:
+      tag_name: ${{ steps.release_meta.outputs.tag_name }}
+      version: ${{ steps.release_meta.outputs.version }}
+    steps:
+      - name: Validate tag format
+        working-directory: .
+        run: |
+          set -euo pipefail
+          if [[ ! "${TAG_NAME}" =~ ^bms-dashboard-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid dashboard release tag: ${TAG_NAME}"
+            echo "Expected format: bms-dashboard-vX.Y.Z"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG_NAME }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate tag matches APP_VERSION
+        id: release_meta
+        run: |
+          set -euo pipefail
+          VERSION="${TAG_NAME#bms-dashboard-v}"
+          APP_VERSION="$(python -c 'from backend.version import APP_VERSION; print(APP_VERSION)')"
+          if [[ "${VERSION}" != "${APP_VERSION}" ]]; then
+            echo "Tag version (${VERSION}) does not match backend/version.py (${APP_VERSION})."
+            exit 1
+          fi
+          echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+  build-windows:
+    needs: validate-version
+    runs-on: windows-2022
+    env:
+      WIN_CERT_BASE64: ${{ secrets.WIN_CERT_BASE64 }}
+      WIN_CERT_PASSWORD: ${{ secrets.WIN_CERT_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate-version.outputs.tag_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          choco install nsis -y
+
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          ./scripts/build_windows.ps1 -Version "${{ needs.validate-version.outputs.version }}"
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          path: BMS_Dashboard/dist/release/windows-x64/*
+
+  build-macos:
+    needs: validate-version
+    runs-on: macos-14
+    env:
+      APPLE_CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
+      APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate-version.outputs.tag_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Install signing certificate
+        if: ${{ env.APPLE_CERT_P12_BASE64 != '' && env.APPLE_CERT_PASSWORD != '' }}
+        run: |
+          echo "${APPLE_CERT_P12_BASE64}" | base64 --decode > /tmp/bms_cert.p12
+          security create-keychain -p actions build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p actions build.keychain
+          security import /tmp/bms_cert.p12 -k build.keychain -P "${APPLE_CERT_PASSWORD}" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions build.keychain
+          IDENTITY="$(security find-identity -v -p codesigning build.keychain | head -n 1 | awk -F'\"' '{print $2}')"
+          echo "APPLE_SIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+
+      - name: Build macOS release artifacts
+        env:
+          APPLE_SIGN_IDENTITY: ${{ env.APPLE_SIGN_IDENTITY }}
+        run: |
+          chmod +x scripts/build_macos.sh
+          ./scripts/build_macos.sh "${{ needs.validate-version.outputs.version }}"
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-release
+          path: BMS_Dashboard/dist/release/macos-universal2/*
+
+  publish-release:
+    needs: [build-windows, build-macos, validate-version]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate-version.outputs.tag_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: BMS_Dashboard/release-artifacts
+
+      - name: Prepare release notes and manifest
+        env:
+          REPO_SLUG: ${{ github.repository }}
+          TAG_NAME: ${{ needs.validate-version.outputs.tag_name }}
+          VERSION: ${{ needs.validate-version.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          NOTES_FILE="release-artifacts/release-notes.md"
+          mkdir -p release-artifacts
+          TARGET_SHA="$(git rev-parse HEAD)"
+
+          if gh api \
+            --method POST \
+            "repos/${REPO_SLUG}/releases/generate-notes" \
+            -f tag_name="${TAG_NAME}" \
+            -f target_commitish="${TARGET_SHA}" \
+            --jq '.body' > "${NOTES_FILE}" && [[ -s "${NOTES_FILE}" ]]; then
+            echo "Generated release notes from GitHub."
+          else
+            cat > "${NOTES_FILE}" <<EOF
+          ## BMS Dashboard ${VERSION}
+
+          - Standalone Windows installer build.
+          - Standalone macOS DMG and updater ZIP build.
+          - Guided in-app update metadata for the latest stable release.
+          EOF
+          fi
+
+          WINDOWS_SRC="$(find release-artifacts/windows-release -type f -name 'BMSDashboard-windows-x64-setup.exe' | head -n1 || true)"
+          MACOS_ZIP_SRC="$(find release-artifacts/macos-release -type f -name 'BMSDashboard-macos-universal2.zip' | head -n1 || true)"
+          MACOS_DMG_SRC="$(find release-artifacts/macos-release -type f -name 'BMSDashboard-macos-universal2.dmg' | head -n1 || true)"
+
+          if [[ -z "${WINDOWS_SRC}" || -z "${MACOS_ZIP_SRC}" || -z "${MACOS_DMG_SRC}" ]]; then
+            echo "Missing one or more release artifacts."
+            ls -R release-artifacts || true
+            exit 1
+          fi
+
+          UPLOAD_DIR="release-artifacts/upload"
+          mkdir -p "${UPLOAD_DIR}"
+
+          WINDOWS_FILE="${UPLOAD_DIR}/BMSDashboard-windows-x64-setup.exe"
+          MACOS_ZIP_FILE="${UPLOAD_DIR}/BMSDashboard-macos-universal2.zip"
+          MACOS_DMG_FILE="${UPLOAD_DIR}/BMSDashboard-macos-universal2.dmg"
+
+          cp -f "${WINDOWS_SRC}" "${WINDOWS_FILE}"
+          cp -f "${MACOS_ZIP_SRC}" "${MACOS_ZIP_FILE}"
+          cp -f "${MACOS_DMG_SRC}" "${MACOS_DMG_FILE}"
+
+          python scripts/build_release_manifest.py \
+            --output release-artifacts/release-manifest.json \
+            --version "${VERSION}" \
+            --channel stable \
+            --notes-file "${NOTES_FILE}" \
+            --repo "${REPO_SLUG}" \
+            --tag "${TAG_NAME}" \
+            --windows-file "${WINDOWS_FILE}" \
+            --macos-file "${MACOS_ZIP_FILE}"
+
+          cp -f release-artifacts/release-manifest.json "${UPLOAD_DIR}/"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.validate-version.outputs.tag_name }}
+          body_path: BMS_Dashboard/release-artifacts/release-notes.md
+          files: |
+            BMS_Dashboard/release-artifacts/upload/*

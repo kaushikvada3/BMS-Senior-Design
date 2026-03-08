@@ -49,7 +49,7 @@ class UpdateInfo:
     tag_name: str
 
 
-DEFAULT_UPDATE_REPO_SLUG = "kaushikvada3/UCR-Computer-Science-Electrical-Engineering"
+DEFAULT_UPDATE_REPO_SLUG = "kaushikvada3/BMS-Senior-Design"
 
 
 def _default_update_state_root() -> Path:
