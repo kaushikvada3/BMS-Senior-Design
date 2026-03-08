@@ -5714,12 +5714,48 @@ document.querySelectorAll(".page-tab").forEach((tab) => {
 
 window.__bmsSwitchPage = switchPage;
 
+// --- Amperage Prediction Data (from empirical data) ---
+const eloadAmpsPredictionVgs = [
+  0.00, 1.00, 1.80, 1.85, 1.90, 1.95, 2.00, 2.05, 2.10, 2.15, 2.20, 2.25,
+  2.30, 2.35, 2.40, 2.45, 2.50, 2.55, 2.60, 2.65, 2.70, 2.75, 2.80, 2.85,
+  2.90, 2.95, 3.00, 3.05, 3.10, 3.15, 3.20, 3.25, 3.30, 3.35, 3.40, 3.45,
+  3.50, 3.55, 3.60, 3.65, 3.70, 3.75, 3.80, 3.85, 3.90, 3.95, 4.00, 4.05, 4.096
+];
+
+const eloadAmpsPredictionAmps = [
+  0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000,
+  0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000,
+  0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.010, 0.010, 0.020, 0.020, 0.040, 0.060,
+  0.090, 0.140, 0.200, 0.320, 0.460, 0.600, 0.720, 0.830, 0.930, 0.970, 0.980, 0.990, 1.000
+];
+
+function predictAmperage(voltage) {
+  const v = Math.max(0.0, Math.min(voltage, 4.096)); // Clamp to bounds
+
+  // Linear interpolation
+  for (let i = 0; i < eloadAmpsPredictionVgs.length - 1; i++) {
+    if (v >= eloadAmpsPredictionVgs[i] && v <= eloadAmpsPredictionVgs[i + 1]) {
+      const v0 = eloadAmpsPredictionVgs[i];
+      const v1 = eloadAmpsPredictionVgs[i + 1];
+      const i0 = eloadAmpsPredictionAmps[i];
+      const i1 = eloadAmpsPredictionAmps[i + 1];
+
+      if (v1 === v0) return i0; // Handle identical points just in case
+
+      const ratio = (v - v0) / (v1 - v0);
+      return i0 + ratio * (i1 - i0);
+    }
+  }
+  return 0.0;
+}
+
 // --- DAC Input and Slider Control ---
 const eloadDacSlider = document.getElementById("eload-dac-slider");
 const eloadDacInput = document.getElementById("eload-dac-input");
 const eloadDacDec = document.getElementById("eload-dac-dec");
 const eloadDacInc = document.getElementById("eload-dac-inc");
 const eloadDacError = document.getElementById("eload-dac-error");
+const eloadPredictedAmps = document.getElementById("eload-predicted-amps");
 
 function updateDacUI(rawVal) {
   let val = Math.max(0, Math.min(4095, parseInt(rawVal, 10) || 0));
@@ -5733,7 +5769,63 @@ function updateDacUI(rawVal) {
   if (eloadDacError) {
     eloadDacError.style.display = 'none';
   }
+  if (eloadPredictedAmps) {
+    const voltage = val / 1000.0;
+    const predictedI = predictAmperage(voltage);
+    eloadPredictedAmps.textContent = `${predictedI.toFixed(4)} A`;
+  }
   return val;
+}
+
+// --- Target Amperage Control ---
+const eloadTargetAmpsInput = document.getElementById("eload-target-amps-input");
+const eloadSetAmpsBtn = document.getElementById("eload-set-amps-btn");
+
+function calculateVoltageForAmperage(targetAmps) {
+  const amps = Math.max(0.0, Math.min(targetAmps, 1.0)); // Hardware limits to ~1A at 4.096V
+
+  // Base case
+  if (amps <= 0) return 0.0;
+
+  // Reverse linear interpolation
+  for (let i = 0; i < eloadAmpsPredictionAmps.length - 1; i++) {
+    // Because amps starts repeating at 0.0 in the lower range, we skip until the current starts rising 
+    // Data has identical 0.0 values until index 29 (V=3.15)
+    const i0 = eloadAmpsPredictionAmps[i];
+    const i1 = eloadAmpsPredictionAmps[i + 1];
+
+    // We found the segment where target current lies
+    if (i1 >= amps && i0 <= amps && i1 > i0) {
+      const v0 = eloadAmpsPredictionVgs[i];
+      const v1 = eloadAmpsPredictionVgs[i + 1];
+
+      const ratio = (amps - i0) / (i1 - i0);
+      return v0 + ratio * (v1 - v0);
+    }
+  }
+
+  // Exceeds table
+  return 4.096;
+}
+
+if (eloadSetAmpsBtn && eloadTargetAmpsInput) {
+  eloadSetAmpsBtn.addEventListener("click", () => {
+    let targetAmps = parseFloat(eloadTargetAmpsInput.value);
+
+    if (!isNaN(targetAmps)) {
+      const targetVoltage = calculateVoltageForAmperage(targetAmps);
+      let rawVal = Math.round(targetVoltage * 1000);
+      rawVal = Math.max(0, Math.min(4095, rawVal));
+
+      // Update UI and send bounds
+      updateDacUI(rawVal);
+      sendBackendCommand(`ELOAD:DAC:${rawVal}`);
+
+      if (eloadSimulationEnabled) {
+        mockEloadStream();
+      }
+    }
+  });
 }
 
 if (eloadDacSlider) {
