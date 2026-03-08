@@ -6,10 +6,15 @@ cd "$ROOT_DIR"
 
 VERSION="${1:-$(python -c 'from backend.version import APP_VERSION; print(APP_VERSION)')}"
 
-if [[ -f "BMS Logo.png" ]]; then
-  python scripts/generate_icons.py --input "BMS Logo.png" --output-dir "assets/icons"
+LOGO_PATH="BMS Logo (new).png"
+if [[ ! -f "$LOGO_PATH" && -f "BMS Logo.png" ]]; then
+  LOGO_PATH="BMS Logo.png"
+fi
+
+if [[ -f "$LOGO_PATH" ]]; then
+  python scripts/generate_icons.py --input "$LOGO_PATH" --output-dir "assets/icons"
 else
-  echo "BMS Logo.png not found; using existing assets/icons files."
+  echo "No logo PNG found; using existing assets/icons files."
 fi
 
 rm -rf build dist
@@ -21,6 +26,8 @@ pyinstaller \
   --name "BMSDashboard" \
   --icon "assets/icons/app_icon.png" \
   --add-data "frontend:frontend" \
+  --add-data "BMS.glb:." \
+  --add-data "BMS Logo (new).png:." \
   --add-data "assets/icons:assets/icons" \
   --add-data "backend/update_helper.py:backend" \
   gui_launcher.py

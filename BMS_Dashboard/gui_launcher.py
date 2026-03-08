@@ -16,6 +16,7 @@ import threading
 import time
 from pathlib import Path
 from typing import Any, Optional
+from urllib.parse import urlparse
 
 from packaging.version import InvalidVersion, Version
 
@@ -71,13 +72,16 @@ def _bootstrap_macos_qt_runtime() -> None:
 _bootstrap_macos_qt_runtime()
 
 from PyQt6.QtCore import (
+    QEasingCurve,
     QFileSystemWatcher,
     QObject,
+    QPropertyAnimation,
     QRect,
     QThread,
     QTimer,
     Qt,
     QUrl,
+    QUrlQuery,
     pyqtSignal,
     pyqtSlot,
 )
@@ -96,6 +100,7 @@ from PyQt6.QtWidgets import (
     QProgressBar,
     QPushButton,
     QVBoxLayout,
+    QWidget,
 )
 
 from backend.data_stream import SerialWorker
@@ -122,6 +127,9 @@ DEFAULT_WINDOW_HEIGHT = 900
 STARTUP_MIN_DURATION_MS = 3000
 BOOT_POLL_INTERVAL_MS = 120
 BOOT_POLL_TIMEOUT_MS = 30000
+STARTUP_SPLASH_WIDTH = 760
+STARTUP_SPLASH_HEIGHT = 440
+STARTUP_HANDOFF_MS = 760
 
 
 def runtime_root() -> Path:
@@ -160,30 +168,47 @@ def resolve_entrypoint(requested: Optional[Path]) -> Path:
     return (Path.cwd() / requested).resolve()
 
 
+def resolve_startup_entrypoint(entrypoint: Optional[Path] = None) -> Path:
+    candidates: list[Path] = []
+    if entrypoint is not None:
+        candidates.append(entrypoint.resolve().parent / "startup.html")
+    candidates.append(resolve_resource("frontend", "startup.html"))
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate.resolve()
+    return candidates[0].resolve()
+
+
 def find_app_icon_path() -> Optional[Path]:
+    brand_logo = find_brand_logo_path()
     if sys.platform.startswith("win"):
         candidate_sets = [
             ("assets", "icons", "app_icon.ico"),
             ("assets", "icons", "app_icon.png"),
             ("assets", "icons", "app_icon.icns"),
-            ("BMS Logo.png",),
         ]
     elif sys.platform == "darwin":
         candidate_sets = [
             ("assets", "icons", "app_icon.icns"),
             ("assets", "icons", "app_icon.png"),
             ("assets", "icons", "app_icon.ico"),
-            ("BMS Logo.png",),
         ]
     else:
         candidate_sets = [
             ("assets", "icons", "app_icon.png"),
             ("assets", "icons", "app_icon.icns"),
             ("assets", "icons", "app_icon.ico"),
-            ("BMS Logo.png",),
         ]
 
     for parts in candidate_sets:
+        path = resolve_resource(*parts)
+        if path.exists():
+            return path
+    return brand_logo
+
+
+def find_brand_logo_path() -> Optional[Path]:
+    for parts in (("BMS Logo (new).png",), ("BMS Logo.png",)):
         path = resolve_resource(*parts)
         if path.exists():
             return path
@@ -383,6 +408,8 @@ class DashboardWindow(QMainWindow):
     update_install_finished = pyqtSignal(object, object)
     update_download_progress = pyqtSignal(int, int)
     update_state_changed = pyqtSignal(str, str, int, int)
+    boot_state_changed = pyqtSignal(object)
+    startup_handoff_requested = pyqtSignal(str)
 
     def __init__(
         self,
@@ -394,6 +421,7 @@ class DashboardWindow(QMainWindow):
         auto_update_check: bool,
         is_packaged: bool,
         app_icon: Optional[QIcon] = None,
+        external_startup_splash: bool = False,
     ) -> None:
         super().__init__()
         self.setWindowTitle("BMS Command Surface")
@@ -429,6 +457,7 @@ class DashboardWindow(QMainWindow):
         self.latest_eload_data = {}
         self.toolbar = None
         self._normal_window_flags = self.windowFlags()
+        self.external_startup_splash = external_startup_splash
         self._startup_mode_active: bool = True
         self._startup_started_at: float = time.monotonic()
         self._startup_min_duration_ms: int = STARTUP_MIN_DURATION_MS
@@ -436,6 +465,7 @@ class DashboardWindow(QMainWindow):
         self._boot_poll_timeout_ms: int = BOOT_POLL_TIMEOUT_MS
         self._boot_last_state: Optional[dict[str, Any]] = None
         self._startup_transition_done: bool = False
+        self._startup_handoff_requested: bool = False
         self._chrome_cue_applied: bool = False
         self._startup_connection_target_last: Optional[bool] = None
         self._boot_poll_timer = QTimer(self)
@@ -495,7 +525,10 @@ class DashboardWindow(QMainWindow):
         self.update_download_progress.connect(self._handle_download_progress)
         self.update_state_changed.connect(self._handle_update_state_changed)
         self.view.loadFinished.connect(self._on_view_load_finished)
-        self._enter_startup_shell_mode()
+        if self.external_startup_splash:
+            self._configure_external_startup_dashboard_mode()
+        else:
+            self._enter_startup_shell_mode()
         self._install_watcher()
         self.load_page()
         self._refresh_status_bar()
@@ -583,6 +616,7 @@ class DashboardWindow(QMainWindow):
                     pass
             print(f"[CMD-POLL] Invalid DAC command: {cmd!r}", flush=True)
             return None
+<<<<<<< HEAD
         elif cmd.startswith("ELOAD:CH:"):
             # ELOAD:CH:1:1  or  ELOAD:CH:3:0  — per-channel toggle
             parts = cmd.split(":")
@@ -596,6 +630,20 @@ class DashboardWindow(QMainWindow):
                     pass
             print(f"[CMD-POLL] Invalid channel command: {cmd!r}", flush=True)
             return None
+        elif cmd.startswith("ELOAD:FAN:SET:"):
+            # ELOAD:FAN:SET:50 -> "FAN:SET:50" (matches BMS command format)
+            parts = cmd.split(":")
+            if len(parts) == 4:
+                try:
+                    duty = int(parts[3])
+                    if 0 <= duty <= 100:
+                        return f"FAN:SET:{duty}"
+                except ValueError:
+                    pass
+            print(f"[CMD-POLL] Invalid Fan command: {cmd!r}", flush=True)
+            return None
+=======
+>>>>>>> f13dff7fc1b3c782c87599d23620674f7976d430
         else:
             print(f"[CMD-POLL] Unknown ELOAD command: {cmd!r}", flush=True)
             return None
@@ -761,6 +809,21 @@ class DashboardWindow(QMainWindow):
         self.statusBar().setVisible(False)
         self._chrome_cue_applied = False
 
+    def _configure_external_startup_dashboard_mode(self) -> None:
+        self.setWindowFlags(self._normal_window_flags | Qt.WindowType.Window)
+        self.setGeometry(self._target_dashboard_geometry())
+        self.setWindowOpacity(0.0)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
+        self.setAutoFillBackground(True)
+        self.setStyleSheet("")
+        self.view.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
+        self.view.setStyleSheet("")
+        self.view.page().setBackgroundColor(QColor(10, 12, 16))
+        if self.toolbar:
+            self.toolbar.setVisible(False)
+        self.statusBar().setVisible(False)
+        self._chrome_cue_applied = False
+
     def _apply_chrome_cue(self) -> None:
         if self._chrome_cue_applied:
             return
@@ -831,7 +894,7 @@ class DashboardWindow(QMainWindow):
         if state_dict is not None:
             phase = str(state_dict.get("phase", "")).strip().lower()
 
-        if phase == "chrome_cue":
+        if phase == "chrome_cue" and not self.external_startup_splash:
             self._apply_chrome_cue()
 
         ready_by_js = bool(
@@ -843,6 +906,12 @@ class DashboardWindow(QMainWindow):
             and (phase == "error" or state_dict.get("errored") is True)
         )
 
+        if state_dict is not None:
+            boot_payload = dict(state_dict)
+            boot_payload["ready"] = ready_by_js
+            boot_payload["errored"] = errored
+            self.boot_state_changed.emit(boot_payload)
+
         if ready_by_js and min_time_met:
             self._transition_to_full_dashboard_window("boot-ready")
             return
@@ -851,18 +920,39 @@ class DashboardWindow(QMainWindow):
             return
 
     def _transition_to_full_dashboard_window(self, reason: str) -> None:
-        if self._startup_transition_done:
+        if self._startup_transition_done or self._startup_handoff_requested:
             return
-        self._startup_transition_done = True
-        self._startup_mode_active = False
 
         if self._boot_poll_timer.isActive():
             self._boot_poll_timer.stop()
 
+        if self.external_startup_splash:
+            self._startup_handoff_requested = True
+            self.startup_handoff_requested.emit(reason)
+            return
+
+        self._startup_transition_done = True
+        self._startup_mode_active = False
         self._apply_chrome_cue()
         self._finish_startup_transition(reason)
 
+    def finalize_external_startup_handoff(self, reason: str) -> None:
+        if self._startup_transition_done:
+            return
+        self._startup_transition_done = True
+        self._startup_mode_active = False
+        self._apply_chrome_cue()
+        self.setWindowOpacity(1.0)
+        self._finish_startup_transition(reason)
+        self.raise_()
+        self.activateWindow()
+
     def _finish_startup_transition(self, reason: str) -> None:
+        if reason in {"boot-error", "boot-timeout"}:
+            reason_js = json.dumps(reason)
+            self.view.page().runJavaScript(
+                f"if(window.__bmsDismissBootLoader) window.__bmsDismissBootLoader({reason_js});"
+            )
 
         if reason == "boot-error":
             self.statusBar().showMessage("Startup error: frontend boot failed.", 10000)
@@ -904,10 +994,22 @@ class DashboardWindow(QMainWindow):
 
     def start_http_server(self) -> None:
         frontend_dir = self.entrypoint.parent
+        startup_logo_path = find_brand_logo_path() or resolve_resource("BMS Logo (new).png")
+        runtime_assets = {
+            "/runtime-assets/BMS.glb": resolve_resource("BMS.glb"),
+            "/runtime-assets/startup-logo.png": startup_logo_path,
+        }
 
         class Handler(http.server.SimpleHTTPRequestHandler):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, directory=str(frontend_dir), **kwargs)
+
+            def translate_path(self, path: str) -> str:
+                parsed_path = urlparse(path).path
+                runtime_asset = runtime_assets.get(parsed_path)
+                if runtime_asset is not None:
+                    return str(runtime_asset)
+                return super().translate_path(path)
 
             def log_message(self, fmt, *args):
                 return
@@ -928,10 +1030,20 @@ class DashboardWindow(QMainWindow):
         self.server_thread.start()
         logger.info("Internal wrapper server started on port %s", self.http_port)
 
+    def local_url(self, filename: str, extra_query: Optional[dict[str, str]] = None) -> QUrl:
+        url = QUrl(f"http://localhost:{self.http_port}/{filename}")
+        query = QUrlQuery()
+        query.addQueryItem("t", str(int(time.time())))
+        if extra_query:
+            for key, value in extra_query.items():
+                query.addQueryItem(str(key), str(value))
+        url.setQuery(query)
+        return url
+
     def load_page(self) -> None:
-        timestamp = int(time.time())
         filename = self.entrypoint.name
-        url = QUrl(f"http://localhost:{self.http_port}/{filename}?t={timestamp}")
+        extra_query = {"externalSplash": "1"} if self.external_startup_splash else None
+        url = self.local_url(filename, extra_query)
         self.view.load(url)
 
     def reload(self) -> None:
@@ -1124,9 +1236,13 @@ class DashboardWindow(QMainWindow):
     def _install_watcher(self) -> None:
         files_to_watch = [
             self.entrypoint,
+            resolve_startup_entrypoint(self.entrypoint),
+            self.entrypoint.parent / "boot-liquid.js",
             self.entrypoint.parent / "scene.js",
             self.entrypoint.parent / "style.css",
             self.entrypoint.parent / "index.html",
+            self.entrypoint.parent / "startup.css",
+            self.entrypoint.parent / "startup.js",
             self.entrypoint.parent / "qwebchannel.js",
         ]
         existing = [str(path) for path in files_to_watch if path.exists()]
@@ -1655,6 +1771,204 @@ class DashboardWindow(QMainWindow):
             size /= 1024.0
 
 
+class StartupSplashWindow(QWidget):
+    load_failed = pyqtSignal()
+
+    def __init__(self, dashboard: DashboardWindow, app_icon: Optional[QIcon] = None) -> None:
+        super().__init__(None)
+        self.dashboard = dashboard
+        self._page_loaded = False
+        self._exit_started = False
+        self._fade_animation: Optional[QPropertyAnimation] = None
+        self._pending_state: Optional[dict[str, Any]] = None
+
+        self.setWindowTitle(APP_NAME)
+        if app_icon and not app_icon.isNull():
+            self.setWindowIcon(app_icon)
+
+        self.setWindowFlags(
+            Qt.WindowType.SplashScreen
+            | Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.WindowStaysOnTopHint
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
+        self.setAutoFillBackground(False)
+        self.setStyleSheet("background: transparent; border: none;")
+        self.setWindowOpacity(1.0)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        self.view = QWebEngineView(self)
+        self.view.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.view.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
+        self.view.setAutoFillBackground(False)
+        self.view.setStyleSheet("background: transparent; border: none;")
+        self.view.page().setBackgroundColor(QColor(0, 0, 0, 0))
+        self.view.loadFinished.connect(self._on_load_finished)
+        layout.addWidget(self.view)
+
+        self.setGeometry(self._target_geometry())
+
+        startup_entrypoint = resolve_startup_entrypoint(self.dashboard.entrypoint)
+        if not startup_entrypoint.exists():
+            raise FileNotFoundError(f"Startup entrypoint not found: {startup_entrypoint}")
+        self.view.load(self.dashboard.local_url(startup_entrypoint.name))
+
+    def _target_geometry(self) -> QRect:
+        dashboard_rect = self.dashboard._target_dashboard_geometry()
+        screen = QApplication.primaryScreen()
+        if screen is None:
+            width = STARTUP_SPLASH_WIDTH
+            height = STARTUP_SPLASH_HEIGHT
+            x = dashboard_rect.center().x() - (width // 2)
+            y = dashboard_rect.center().y() - (height // 2)
+            return QRect(x, y, width, height)
+
+        avail = screen.availableGeometry()
+        width = min(STARTUP_SPLASH_WIDTH, max(420, avail.width() - 48))
+        height = min(STARTUP_SPLASH_HEIGHT, max(280, avail.height() - 80))
+        rect = QRect(0, 0, width, height)
+        rect.moveCenter(dashboard_rect.center())
+
+        if rect.left() < avail.left():
+            rect.moveLeft(avail.left())
+        if rect.top() < avail.top():
+            rect.moveTop(avail.top())
+        if rect.right() > avail.right():
+            rect.moveRight(avail.right())
+        if rect.bottom() > avail.bottom():
+            rect.moveBottom(avail.bottom())
+        return rect
+
+    def _apply_state_to_page(self, state: dict[str, Any]) -> None:
+        if not self._page_loaded:
+            self._pending_state = dict(state)
+            return
+
+        state_js = json.dumps(state)
+        self.view.page().runJavaScript(
+            f"if(window.__bmsStartupApplyState) window.__bmsStartupApplyState({state_js});"
+        )
+
+    def _on_load_finished(self, ok: bool) -> None:
+        if not ok:
+            logger.warning("Startup splash page failed to load.")
+            self.load_failed.emit()
+            return
+
+        self._page_loaded = True
+        pending = self._pending_state
+        if pending:
+            self._pending_state = None
+            self._apply_state_to_page(pending)
+
+    def show_splash(self) -> None:
+        self.setGeometry(self._target_geometry())
+        self.show()
+        self.raise_()
+        self.activateWindow()
+
+    def push_state(self, state: Any) -> None:
+        if not isinstance(state, dict):
+            return
+        self._apply_state_to_page(state)
+
+    def _begin_fade_out(self, duration_ms: int, finished_callback) -> None:
+        duration = max(180, int(duration_ms or STARTUP_HANDOFF_MS))
+        self._fade_animation = QPropertyAnimation(self, b"windowOpacity", self)
+        self._fade_animation.setDuration(duration)
+        self._fade_animation.setStartValue(float(self.windowOpacity()))
+        self._fade_animation.setEndValue(0.0)
+        self._fade_animation.setEasingCurve(QEasingCurve.Type.InOutCubic)
+        self._fade_animation.finished.connect(finished_callback)
+        self._fade_animation.start()
+
+    def start_exit_transition(self, reason: str, finished_callback) -> None:
+        if self._exit_started:
+            return
+        self._exit_started = True
+
+        if not self._page_loaded:
+            self._begin_fade_out(STARTUP_HANDOFF_MS, finished_callback)
+            return
+
+        reason_js = json.dumps(reason)
+
+        def _handle_duration(result: Any) -> None:
+            duration = STARTUP_HANDOFF_MS
+            if isinstance(result, (int, float)):
+                duration = int(result)
+            self._begin_fade_out(duration, finished_callback)
+
+        self.view.page().runJavaScript(
+            f"window.__bmsStartExitTransition ? window.__bmsStartExitTransition({reason_js}) : {STARTUP_HANDOFF_MS};",
+            _handle_duration,
+        )
+
+
+class StartupCoordinator(QObject):
+    def __init__(self, dashboard: DashboardWindow, splash: StartupSplashWindow) -> None:
+        super().__init__(dashboard)
+        self.dashboard = dashboard
+        self.splash = splash
+        self._handoff_started = False
+        self._handoff_reason = "boot-ready"
+        self._dashboard_fade: Optional[QPropertyAnimation] = None
+
+        self.dashboard.boot_state_changed.connect(self.splash.push_state)
+        self.dashboard.startup_handoff_requested.connect(self._begin_handoff)
+        self.splash.load_failed.connect(self._fallback_to_dashboard)
+
+    def start(self) -> None:
+        self.dashboard.show()
+        self.dashboard.lower()
+        self.splash.show_splash()
+        if self.dashboard._boot_last_state:
+            self.splash.push_state(self.dashboard._boot_last_state)
+
+    def _begin_handoff(self, reason: str) -> None:
+        if self._handoff_started:
+            return
+
+        self._handoff_started = True
+        self._handoff_reason = reason or "boot-ready"
+
+        self.dashboard.setWindowOpacity(0.0)
+        self.dashboard.show()
+        self.dashboard.raise_()
+
+        self._dashboard_fade = QPropertyAnimation(self.dashboard, b"windowOpacity", self)
+        self._dashboard_fade.setDuration(STARTUP_HANDOFF_MS)
+        self._dashboard_fade.setStartValue(0.0)
+        self._dashboard_fade.setEndValue(1.0)
+        self._dashboard_fade.setEasingCurve(QEasingCurve.Type.InOutCubic)
+        self._dashboard_fade.start()
+
+        self.splash.raise_()
+        self.splash.start_exit_transition(self._handoff_reason, self._complete_handoff)
+
+    def _complete_handoff(self) -> None:
+        self.splash.close()
+        self.dashboard.finalize_external_startup_handoff(self._handoff_reason)
+
+    def _fallback_to_dashboard(self) -> None:
+        if self._handoff_started:
+            return
+
+        logger.warning("Startup splash failed; falling back to direct dashboard display.")
+        self._handoff_started = True
+        self.dashboard.setWindowOpacity(1.0)
+        self.dashboard.show()
+        self.dashboard.raise_()
+        self.dashboard.activateWindow()
+        self.dashboard.finalize_external_startup_handoff("splash-load-failed")
+        self.splash.close()
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Launch the BMS dashboard GUI.")
     parser.add_argument(
@@ -1765,12 +2079,22 @@ def main() -> int:
             auto_update_check=not args.no_auto_update_check,
             is_packaged=is_packaged,
             app_icon=icon,
+            external_startup_splash=True,
         )
     except (FileNotFoundError, RuntimeError) as exc:
         QMessageBox.critical(None, "Dashboard launcher", str(exc))
         return 1
 
-    window.show()
+    coordinator: Optional[StartupCoordinator] = None
+    try:
+        splash = StartupSplashWindow(window, app_icon=icon)
+        coordinator = StartupCoordinator(window, splash)
+        coordinator.start()
+    except (FileNotFoundError, RuntimeError) as exc:
+        logger.exception("Failed to initialize startup splash: %s", exc)
+        window.show()
+        window.finalize_external_startup_handoff("splash-init-failed")
+
     return app.exec()
 
 

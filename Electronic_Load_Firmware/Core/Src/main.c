@@ -25,6 +25,7 @@
 #include "mcp4725.h"
 #include "usbd_cdc_if.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 /* USER CODE END Includes */
@@ -85,6 +86,8 @@ static GPIO_TypeDef *const chan_port[4] = {OFF_GPIO_Port, LOAD_1_GPIO_Port,
                                            LOAD_2_GPIO_Port, LOAD_3_GPIO_Port};
 static const uint16_t chan_pin[4] = {OFF_Pin, LOAD_1_Pin, LOAD_2_Pin,
                                      LOAD_3_Pin};
+
+static uint16_t fan_duty = 60U; /* Fan duty cycle in percent (0-100) */
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -198,6 +201,16 @@ static void chan_apply_all(void) {
     chan_apply(i);
 }
 
+/* ---- Fan control helper (mirrors BMS Fan_SetSpeed) ---- */
+static void Fan_SetSpeed(uint8_t percent) {
+  if (percent > 100)
+    percent = 100;
+  fan_duty = percent;
+  /* Scale 0-100% to 0-1919 (TIM17 period) */
+  uint32_t compare = (uint32_t)percent * 1919U / 100U;
+  __HAL_TIM_SET_COMPARE(&htim17, TIM_CHANNEL_1, (uint16_t)compare);
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -248,8 +261,10 @@ int main(void) {
   /* DAC value — will be written continuously in the main loop */
   dac_value = DAC_TEST_VALUE;
 
-  /* Start fan PWM at 100% duty cycle (max speed, always on) */
-  __HAL_TIM_SET_COMPARE(&htim17, TIM_CHANNEL_1, 1919U);
+  /* Start fan PWM at 60% duty cycle (default) */
+  fan_duty = 60U;
+  uint32_t compare = (uint32_t)fan_duty * 1919U / 100U;
+  __HAL_TIM_SET_COMPARE(&htim17, TIM_CHANNEL_1, (uint16_t)compare);
   HAL_TIM_PWM_Start(&htim17, TIM_CHANNEL_1);
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
@@ -339,6 +354,19 @@ int main(void) {
                          (unsigned)dac_value);
         if (n > 0 && usb_is_configured() && CDC_IsReady_FS())
           (void)CDC_Transmit_FS((uint8_t *)report_buf, (uint16_t)n);
+      } else if (strncmp(cmd, "FAN:SET:", 8) == 0) {
+        /* "FAN:SET:<0-100>" — set Fan Speed % (matches BMS command format) */
+        int duty = atoi(cmd + 8);
+        if (duty < 0)
+          duty = 0;
+        if (duty > 100)
+          duty = 100;
+        Fan_SetSpeed((uint8_t)duty);
+
+        int n = snprintf(report_buf, sizeof(report_buf), "OK FAN=%u\r\n",
+                         (unsigned)fan_duty);
+        if (n > 0 && usb_is_configured() && CDC_IsReady_FS())
+          (void)CDC_Transmit_FS((uint8_t *)report_buf, (uint16_t)n);
       }
 
       cmd_ready_flag = 0;
@@ -352,11 +380,12 @@ int main(void) {
             report_buf, sizeof(report_buf),
             "\r\nElectronic Load Telemetry\r\n"
             "I2C_SCAN: %u device(s) found: %s\r\n"
-            "CH1=%u CH2=%u CH3=%u CH4=%u DAC=%u DAC_I2C=%s\r\n\r\n",
+            "CH1=%u CH2=%u CH3=%u CH4=%u DAC=%u FAN=%u DAC_I2C=%s\r\n\r\n",
             (unsigned)i2c_devices_found, i2c_scan_buf,
             (unsigned)chan_enabled[0], (unsigned)chan_enabled[1],
             (unsigned)chan_enabled[2], (unsigned)chan_enabled[3],
-            (unsigned)dac_value, (dac_status == HAL_OK) ? "ACK" : "NACK");
+            (unsigned)dac_value, (unsigned)fan_duty,
+            (dac_status == HAL_OK) ? "ACK" : "NACK");
         (void)CDC_Transmit_FS((uint8_t *)report_buf, (uint16_t)n);
         banner_sent = 1U;
         last_report_tick_ms = now;
@@ -376,14 +405,15 @@ int main(void) {
         uint32_t s3_mv = ADC_RAW_TO_MV(adc_dma_buf[2]);
         uint32_t s4_mv = ADC_RAW_TO_MV(adc_dma_buf[3]);
 
-        int n = snprintf(
-            report_buf, sizeof(report_buf),
-            "S1=%lu S2=%lu S3=%lu S4=%lu DAC=%u DEV=%s WR=%s ERR=0x%02lX\r\n",
-            (unsigned long)s1_mv, (unsigned long)s2_mv, (unsigned long)s3_mv,
-            (unsigned long)s4_mv, (unsigned)dac_value,
-            (dev_ready == HAL_OK) ? "OK" : "NO",
-            (dac_status == HAL_OK) ? "OK" : "FAIL",
-            (unsigned long)hi2c1.ErrorCode);
+        int n =
+            snprintf(report_buf, sizeof(report_buf),
+                     "S1=%lu S2=%lu S3=%lu S4=%lu DAC=%u DEV=%s WR=%s "
+                     "FAN:AUTO=0,DUTY=%u,RPM=0 ERR=0x%02lX\r\n",
+                     (unsigned long)s1_mv, (unsigned long)s2_mv,
+                     (unsigned long)s3_mv, (unsigned long)s4_mv,
+                     (unsigned)dac_value, (dev_ready == HAL_OK) ? "OK" : "NO",
+                     (dac_status == HAL_OK) ? "OK" : "FAIL", (unsigned)fan_duty,
+                     (unsigned long)hi2c1.ErrorCode);
         if (n > 0)
           (void)CDC_Transmit_FS((uint8_t *)report_buf, (uint16_t)n);
       }

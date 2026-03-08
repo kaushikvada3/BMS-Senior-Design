@@ -24,15 +24,20 @@
 <body class="is-booting">
   <div id="boot-loader" role="status" aria-live="polite" aria-label="Loading BMS Dashboard">
     <div id="boot-loader-content">
-      <img src="assets/branding/bms-logo.png" alt="BMS Logo" class="boot-loader__logo" />
+      <canvas id="boot-liquid-canvas" class="boot-loader__liquid" aria-hidden="true"></canvas>
+      <div class="boot-loader__shine" aria-hidden="true"></div>
+      <div class="boot-loader__logo-frame">
+        <img src="/runtime-assets/startup-logo.png" alt="BMS Logo" class="boot-loader__logo" />
+      </div>
       <p id="boot-stage" class="boot-loader__stage">Initializing Dashboard</p>
-
       <div class="boot-loader__meta">
         <span id="boot-detail" class="boot-loader__detail">Loading assets...</span>
         <span id="boot-percent" class="boot-loader__percent">0%</span>
       </div>
-      <div class="boot-loader__bar" aria-hidden="true">
-        <div id="boot-progress-fill" class="boot-loader__fill"></div>
+      <div class="boot-loader__bar-shell" aria-hidden="true">
+        <div class="boot-loader__bar">
+          <div id="boot-progress-fill" class="boot-loader__fill"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -150,10 +155,32 @@
           <div class="timeline__header">
             <p class="eyebrow">Charge Mode</p>
             <div class="mode-selector small">
-              <button class="mode-btn active" id="charge-off-btn">Off</button>
+              <button class="mode-btn" id="charge-off-btn">Off</button>
               <button class="mode-btn" id="charge-on-btn">Charge</button>
             </div>
           </div>
+        </section>
+
+        <!-- FET Control -->
+        <section class="hud__section glass-panel">
+          <div class="timeline__header">
+            <p class="eyebrow">FET Control</p>
+            <div class="mode-selector small">
+              <button class="mode-btn" id="fet-discharge-btn">Discharge</button>
+              <button class="mode-btn" id="fet-off-btn">FETs Off</button>
+            </div>
+          </div>
+          <div class="fet-status-grid">
+            <div class="fet-indicator" data-fet-indicator="charge">
+              <p class="metric-card__label">Charge FET</p>
+              <p class="fet-indicator__value" data-charge-fet-status>--</p>
+            </div>
+            <div class="fet-indicator" data-fet-indicator="discharge">
+              <p class="metric-card__label">Discharge FET</p>
+              <p class="fet-indicator__value" data-discharge-fet-status>--</p>
+            </div>
+          </div>
+          <p class="metric-card__hint fet-thermal-note" data-fet-thermal-note hidden>Thermal shutdown: both FETs forced off</p>
         </section>
 
         <!-- Cell Balancing Control -->
@@ -290,6 +317,8 @@
       <!-- Left Column: E-Load Graphs & Status -->
       <div class="left-column">
 
+<<<<<<< HEAD
+=======
         <!-- E-Load Shunt Current Trend Graphs -->
         <section class="hud__section glass-panel eload-graphs">
           <div class="timeline__header">
@@ -298,7 +327,7 @@
           <div class="eload-trend-grid">
             <div class="eload-trend">
               <div class="detail-graph__header">
-                <span class="detail-stat__label">S1 (CH1)</span>
+                <span class="detail-stat__label">S1</span>
                 <span class="detail-stat__value detail-graph__latest" id="eload-trend-latest-s1">-- mV</span>
               </div>
               <svg class="detail-graph__svg" viewBox="0 0 260 90" preserveAspectRatio="none">
@@ -312,7 +341,7 @@
             </div>
             <div class="eload-trend">
               <div class="detail-graph__header">
-                <span class="detail-stat__label">S2 (CH2)</span>
+                <span class="detail-stat__label">S2</span>
                 <span class="detail-stat__value detail-graph__latest" id="eload-trend-latest-s2">-- mV</span>
               </div>
               <svg class="detail-graph__svg" viewBox="0 0 260 90" preserveAspectRatio="none">
@@ -326,7 +355,7 @@
             </div>
             <div class="eload-trend">
               <div class="detail-graph__header">
-                <span class="detail-stat__label">S3 (CH3)</span>
+                <span class="detail-stat__label">S3</span>
                 <span class="detail-stat__value detail-graph__latest" id="eload-trend-latest-s3">-- mV</span>
               </div>
               <svg class="detail-graph__svg" viewBox="0 0 260 90" preserveAspectRatio="none">
@@ -340,7 +369,7 @@
             </div>
             <div class="eload-trend">
               <div class="detail-graph__header">
-                <span class="detail-stat__label">S4 (CH4)</span>
+                <span class="detail-stat__label">S4</span>
                 <span class="detail-stat__value detail-graph__latest" id="eload-trend-latest-s4">-- mV</span>
               </div>
               <svg class="detail-graph__svg" viewBox="0 0 260 90" preserveAspectRatio="none">
@@ -354,9 +383,15 @@
             </div>
           </div>
         </section>
+>>>>>>> f13dff7fc1b3c782c87599d23620674f7976d430
 
-        <!-- Simulate toggle -->
-        <section class="hud__section glass-panel">
+
+        <!-- E-Load Metrics -->
+        <section class="hud__section metrics glass-panel">
+          <div class="metric-card">
+            <p class="metric-card__label">Fan Speed</p>
+            <p class="metric-card__value" data-eload-fan-speed>-- RPM</p>
+          </div>
           <div class="metric-card metric-card--simulate">
             <div class="metric-card__row">
               <p class="metric-card__label">Simulate Data</p>
@@ -373,46 +408,6 @@
       <!-- Right Column: E-Load Controls -->
       <div class="right-column">
 
-        <!-- E-Load Control -->
-        <section class="hud__section eload glass-panel">
-          <div class="timeline__header">
-            <p class="eyebrow">E-Load Control</p>
-          </div>
-          <div class="eload-channel-toggles">
-            <div class="eload-ch-toggle">
-              <span class="eload-ch-label">CH1</span>
-              <div class="toggle-switch toggle-switch--small">
-                <input type="checkbox" id="eload-ch1-toggle" checked />
-                <label for="eload-ch1-toggle" aria-label="Toggle Channel 1"></label>
-              </div>
-            </div>
-            <div class="eload-ch-toggle">
-              <span class="eload-ch-label">CH2</span>
-              <div class="toggle-switch toggle-switch--small">
-                <input type="checkbox" id="eload-ch2-toggle" checked />
-                <label for="eload-ch2-toggle" aria-label="Toggle Channel 2"></label>
-              </div>
-            </div>
-            <div class="eload-ch-toggle">
-              <span class="eload-ch-label">CH3</span>
-              <div class="toggle-switch toggle-switch--small">
-                <input type="checkbox" id="eload-ch3-toggle" checked />
-                <label for="eload-ch3-toggle" aria-label="Toggle Channel 3"></label>
-              </div>
-            </div>
-            <div class="eload-ch-toggle">
-              <span class="eload-ch-label">CH4</span>
-              <div class="toggle-switch toggle-switch--small">
-                <input type="checkbox" id="eload-ch4-toggle" checked />
-                <label for="eload-ch4-toggle" aria-label="Toggle Channel 4"></label>
-              </div>
-            </div>
-            <button class="eload-all-btn" id="eload-all-on" title="All ON">All ON</button>
-            <button class="eload-all-btn" id="eload-all-off" title="All OFF">All OFF</button>
-          </div>
-
-        </section>
-
         <!-- DAC Control -->
         <section class="hud__section glass-panel">
           <div class="timeline__header">
@@ -422,7 +417,8 @@
             <p class="metric-card__label">Voltage Setting</p>
             <div class="input-row">
               <div class="glass-slider" data-glass-slider>
-                <input type="range" min="0" max="4095" step="1" value="0" id="eload-dac-slider" class="glass-slider__input">
+                <input type="range" min="0" max="4095" step="1" value="0" id="eload-dac-slider"
+                  class="glass-slider__input">
                 <div class="glass-slider__track">
                   <div class="glass-slider__progress" id="eload-dac-progress"></div>
                 </div>
@@ -432,9 +428,43 @@
                   <div class="glass-slider__thumb-specular"></div>
                 </div>
               </div>
-              <span class="value-display" id="eload-dac-value">0</span>
+              <div class="dac-input-wrapper" style="display:flex; align-items:center; gap:4px; margin-left:12px;">
+                <button id="eload-dac-dec" class="mode-btn" style="padding:2px 6px; min-width:unset;">&minus;</button>
+                <input type="number" id="eload-dac-input" class="serial-terminal__input"
+                  style="width:70px; text-align:center; flex:none; padding:4px;" min="0" max="4.096" step="0.001"
+                  value="0.000" />
+                <button id="eload-dac-inc" class="mode-btn" style="padding:2px 6px; min-width:unset;">&plus;</button>
+              </div>
             </div>
-            <p class="metric-card__hint">DAC raw (0 - 4095)</p>
+            <div id="eload-dac-error"
+              style="color:var(--danger-color, #ff453a); font-size:12px; display:none; margin-top:4px;">Error: Value
+              must be between 0 and 4.096V</div>
+            <p class="metric-card__hint">DAC Voltage (0V - 4.096V)</p>
+          </div>
+        </section>
+
+        <!-- Fan Cooling Control (Manual Only) -->
+        <section class="hud__section glass-panel">
+          <div class="timeline__header">
+            <p class="eyebrow">Fan Cooling</p>
+          </div>
+          <div class="control-group" id="eload-fan-controls">
+            <p class="metric-card__label">PWM Duty Cycle</p>
+            <div class="input-row">
+              <div class="glass-slider" data-glass-slider>
+                <input type="range" min="0" max="100" step="5" value="60" id="eload-fan-slider"
+                  class="glass-slider__input">
+                <div class="glass-slider__track">
+                  <div class="glass-slider__progress" style="width: 60%;"></div>
+                </div>
+                <div class="glass-slider__thumb" style="left: 60%;">
+                  <div class="glass-slider__thumb-filter"></div>
+                  <div class="glass-slider__thumb-overlay"></div>
+                  <div class="glass-slider__thumb-specular"></div>
+                </div>
+              </div>
+              <span class="value-display" id="eload-fan-value">60%</span>
+            </div>
           </div>
         </section>
 

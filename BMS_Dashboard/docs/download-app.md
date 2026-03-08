@@ -4,17 +4,16 @@ This guide is for anyone who wants to install the desktop app without running th
 
 ## Direct Latest Links
 
-- Windows `.exe`: https://github.com/kaushikvada3/UCR-Computer-Science-Electrical-Engineering/releases/latest/download/BMSDashboard-windows-x64-setup.exe
-- macOS `.dmg`: https://github.com/kaushikvada3/UCR-Computer-Science-Electrical-Engineering/releases/latest/download/BMSDashboard-macos-universal2.dmg
-- Linux `.AppImage`: https://github.com/kaushikvada3/UCR-Computer-Science-Electrical-Engineering/releases/latest/download/BMSDashboard-linux-x64.AppImage
+- Windows `.exe`: https://github.com/kaushikvada3/BMS-Senior-Design/releases/latest/download/BMSDashboard-windows-x64-setup.exe
+- macOS `.dmg`: https://github.com/kaushikvada3/BMS-Senior-Design/releases/latest/download/BMSDashboard-macos-universal2.dmg
 
 ## 1) Open The Releases Page
 
 Go to:
 
-`https://github.com/kaushikvada3/UCR-Computer-Science-Electrical-Engineering/releases`
+`https://github.com/kaushikvada3/BMS-Senior-Design/releases`
 
-Pick the newest release (for example: `v0.1.0`).
+Pick the newest dashboard release (for example: `bms-dashboard-v2.0.6`).
 
 ## 2) Download The Right File For Your OS
 
@@ -22,7 +21,6 @@ From the **Assets** section:
 
 - **Windows**: `BMSDashboard-<version>-windows-x64-setup.exe`
 - **macOS**: `BMSDashboard-<version>-macos-universal2.dmg`
-- **Linux**: `BMSDashboard-<version>-linux-x64.AppImage`
 
 ## 3) Install / Run
 
@@ -38,17 +36,6 @@ From the **Assets** section:
 2. Drag **BMS Dashboard.app** into **Applications**.
 3. Open it from Applications.
 
-### Linux
-
-1. Make the AppImage executable:
-   ```bash
-   chmod +x BMSDashboard-<version>-linux-x64.AppImage
-   ```
-2. Run it:
-   ```bash
-   ./BMSDashboard-<version>-linux-x64.AppImage
-   ```
-
 ## 4) First Launch Setup
 
 1. Connect the BMS hardware over USB.
@@ -59,7 +46,9 @@ From the **Assets** section:
 
 ## 5) Updating
 
-- The app can check for new releases.
+- The app can check GitHub Releases for new versions.
+- On Windows, the app downloads and launches the latest installer for you.
+- On macOS, the app downloads the update payload and replaces the installed app bundle in place.
 - You can also manually install a newer release by downloading the latest file from the Releases page and running it.
 
 ## Troubleshooting

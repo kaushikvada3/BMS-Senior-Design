@@ -1,12 +1,13 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { createBootLiquidRenderer } from "./boot-liquid.js";
 
 const { gsap } = window;
+const EXTERNAL_SPLASH_MODE = new URLSearchParams(window.location.search).get("externalSplash") === "1";
 
 // --- Configuration ---
-const MODEL_PATH = "battery_design.fbx";
+const MODEL_PATH = "/runtime-assets/BMS.glb";
 const CELL_NAME_PATTERN = /\b(cell|cyl|cylinder)\b/i; // Generic fallback
 const EXPLICIT_CELL_NAME_PATTERN = /\bbattery\s*cell\b|\bcell[\s_-]*\d+\b/i;
 const SHELL_NAME_PATTERN = /shell|case|housing|enclosure|cover|body|chassis/i;
@@ -51,12 +52,17 @@ const BOOT_REVEAL_HOLD_MS = 450;
 const BOOT_REVEAL_DURATION_MS = 1600;
 
 const bootLoaderEl = document.getElementById("boot-loader");
+const bootLiquidCanvasEl = document.getElementById("boot-liquid-canvas");
 const bootProgressFillEl = document.getElementById("boot-progress-fill");
 const bootPercentEl = document.getElementById("boot-percent");
 const bootStageEl = document.getElementById("boot-stage");
 const bootDetailEl = document.getElementById("boot-detail");
 const chromeMaskEl = document.getElementById("chrome-mask");
 const chromeMaskBarEl = document.querySelector(".chrome-mask__bar");
+
+if (EXTERNAL_SPLASH_MODE) {
+  document.body.classList.add("external-splash");
+}
 
 const bootState = {
   stage: "bootstrap",
@@ -80,6 +86,7 @@ const bootState = {
 };
 let bootRevealHoldTimer = 0;
 let startupConnectionTarget = false;
+let bootLiquid = null;
 
 function clamp01(value) {
   return Math.max(0, Math.min(1, Number(value) || 0));
@@ -170,10 +177,65 @@ function maybeFinishBootLoader() {
     window.clearTimeout(bootRevealHoldTimer);
     bootRevealHoldTimer = 0;
   }
+
+  if (EXTERNAL_SPLASH_MODE) {
+    completeBootLoaderImmediately();
+    return;
+  }
+
   bootRevealHoldTimer = window.setTimeout(() => {
     bootRevealHoldTimer = 0;
     runRevealSequence();
   }, BOOT_REVEAL_HOLD_MS);
+}
+
+function destroyBootLiquidRenderer() {
+  if (!bootLiquid) return;
+  bootLiquid.destroy();
+  bootLiquid = null;
+}
+
+function completeBootLoaderImmediately() {
+  if (bootState.hidden && (!bootLoaderEl || !bootLoaderEl.isConnected)) {
+    return;
+  }
+
+  const sceneCanvas = document.getElementById("scene");
+  const hudRoot = document.querySelector(".hud");
+
+  const startupBlend = startupConnectionTarget ? 1 : 0;
+  connectionVisualProgress = startupBlend;
+  connectionTransitionFrom = startupBlend;
+  connectionTransitionTo = startupBlend;
+  connectionTransitionActive = false;
+  applyShellTransparency(startupBlend);
+  applyModelConnectionPose(startupBlend);
+
+  bootState.chromeCueSent = true;
+  bootState.hideStarted = true;
+  bootState.handoffProgress = 1;
+  bootState.hidden = true;
+  bootState.phase = "complete";
+
+  document.body.classList.add("boot-chrome-cue");
+  document.body.classList.remove("is-booting", "is-revealing");
+  destroyBootLiquidRenderer();
+  if (bootLoaderEl && bootLoaderEl.isConnected) {
+    bootLoaderEl.remove();
+  }
+
+  if (hudRoot) {
+    hudRoot.style.visibility = "visible";
+    hudRoot.style.opacity = "1";
+  }
+  if (sceneCanvas) {
+    sceneCanvas.style.visibility = "visible";
+    sceneCanvas.style.opacity = "1";
+  }
+  if (chromeMaskBarEl) {
+    chromeMaskBarEl.style.opacity = "0";
+    chromeMaskBarEl.style.transform = "translateY(-18px)";
+  }
 }
 
 function runRevealSequence() {
@@ -182,45 +244,10 @@ function runRevealSequence() {
   const loaderMetaEl = document.querySelector(".boot-loader__meta");
   const sceneCanvas = document.getElementById("scene");
   const hudRoot = document.querySelector(".hud");
-  const detailPanel = document.querySelector(".detail-panel");
   const header = document.querySelector(".hud__header");
 
-  const finishImmediately = () => {
-    const startupBlend = startupConnectionTarget ? 1 : 0;
-    connectionVisualProgress = startupBlend;
-    connectionTransitionFrom = startupBlend;
-    connectionTransitionTo = startupBlend;
-    connectionTransitionActive = false;
-    applyShellTransparency(startupBlend);
-    applyModelConnectionPose(startupBlend);
-
-    bootState.chromeCueSent = true;
-    bootState.handoffProgress = 1;
-    bootState.hidden = true;
-    bootState.phase = "complete";
-    document.body.classList.add("boot-chrome-cue");
-    document.body.classList.remove("is-booting", "is-revealing");
-    if (bootLoaderEl) bootLoaderEl.remove();
-    if (hudRoot) {
-      hudRoot.style.visibility = "visible";
-      hudRoot.style.opacity = "1";
-    }
-    if (detailPanel) {
-      detailPanel.style.visibility = "visible";
-      detailPanel.style.opacity = "1";
-    }
-    if (sceneCanvas) {
-      sceneCanvas.style.visibility = "visible";
-      sceneCanvas.style.opacity = "1";
-    }
-    if (chromeMaskBarEl) {
-      chromeMaskBarEl.style.opacity = "0";
-      chromeMaskBarEl.style.transform = "translateY(-18px)";
-    }
-  };
-
   if (!bootLoaderEl || !gsap) {
-    finishImmediately();
+    completeBootLoaderImmediately();
     return;
   }
 
@@ -253,14 +280,13 @@ function runRevealSequence() {
 
   const allAnimTargets = [
     loaderContent, bootStageEl, loaderBarEl, loaderMetaEl,
-    hudRoot, detailPanel, header, statusEl,
+    hudRoot, header, statusEl,
     chromeMaskEl, chromeMaskBarEl, ...leftPanels, ...rightPanels,
   ].filter(Boolean);
   gsap.set(allAnimTargets, { willChange: "transform, opacity" });
 
   if (sceneCanvas) gsap.set(sceneCanvas, { visibility: "visible", opacity: 1 });
   if (hudRoot) gsap.set(hudRoot, { visibility: "visible", opacity: 0 });
-  if (detailPanel) gsap.set(detailPanel, { visibility: "visible", opacity: 0 });
   if (chromeMaskBarEl) gsap.set(chromeMaskBarEl, { opacity: 1, y: 0 });
 
   const cameraBlend = { t: 0 };
@@ -283,9 +309,10 @@ function runRevealSequence() {
       bootState.handoffProgress = 1;
       document.body.classList.remove("is-revealing");
       gsap.set(allAnimTargets, { willChange: "auto", clearProps: "willChange" });
-      if (bootLoaderEl) bootLoaderEl.remove();
+      destroyBootLiquidRenderer();
+      if (bootLoaderEl && bootLoaderEl.isConnected) bootLoaderEl.remove();
       gsap.set(
-        [sceneCanvas, hudRoot, detailPanel, header, statusEl, ...leftPanels, ...rightPanels].filter(Boolean),
+        [sceneCanvas, hudRoot, header, statusEl, ...leftPanels, ...rightPanels].filter(Boolean),
         { clearProps: "all" },
       );
       if (chromeMaskBarEl) {
@@ -451,6 +478,17 @@ function setBootError(message, error = null) {
   }
 }
 
+window.__bmsDismissBootLoader = function __bmsDismissBootLoader(reason) {
+  if (reason) {
+    console.warn(`[BMS] Forcing boot overlay dismissal: ${reason}`);
+  }
+  completeBootLoaderImmediately();
+  return {
+    ok: true,
+    reason: reason || "forced",
+  };
+};
+
 window.__bmsSetStartupConnectionTarget = function __bmsSetStartupConnectionTarget(connected) {
   startupConnectionTarget = Boolean(connected);
   return {
@@ -462,6 +500,8 @@ window.__bmsSetStartupConnectionTarget = function __bmsSetStartupConnectionTarge
 window.__bmsBootDebug = function __bmsBootDebug() {
   return {
     stage: bootState.stage,
+    stageLabel: bootStageEl ? bootStageEl.textContent : "",
+    detail: bootState.detail,
     percent: Number(computeBootPercent().toFixed(2)),
     bytesLoaded: bootState.bytesLoaded,
     bytesTotal: bootState.bytesTotal,
@@ -492,6 +532,23 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.2;
+
+if (!EXTERNAL_SPLASH_MODE && bootLiquidCanvasEl) {
+  const initialBootLiquid = createBootLiquidRenderer({
+    canvas: bootLiquidCanvasEl,
+    sourceCanvas: canvas,
+  });
+  if (initialBootLiquid.ready) {
+    bootLiquid = initialBootLiquid;
+    document.body.classList.remove("boot-liquid-fallback");
+  } else {
+    bootLiquid = null;
+    document.body.classList.add("boot-liquid-fallback");
+  }
+} else {
+  bootLiquid = null;
+  document.body.classList.add("boot-liquid-fallback");
+}
 
 const scene = new THREE.Scene();
 // No background color - let CSS gradient show through
@@ -628,7 +685,7 @@ let eloadFetWorldPositions = [];  // Vector3[] — world-space centers of FET he
 let eloadFetHeatLevels = [0.5, 0.5, 0.5, 0.5]; // per-FET heat (0-1), telemetry-driven
 let eloadThermalHeatRadius = 1.0; // world-space radius for heat falloff
 let eloadFanSpinEnabled = true;
-let eloadFanSpinSpeed = 0.5;      // 0..1 normalized
+let eloadFanSpinSpeed = 0.6;      // 0..1 normalized (default 60%)
 let eloadHeatVizEnabled = true;
 let eloadHeatIntensity = 0.5;     // 0..1 normalized
 let eloadEnvMap = null;
@@ -2326,23 +2383,6 @@ async function initializeLoadedModel(object) {
   if (cellMeshes.length === 0) {
     console.warn("No cells found matching pattern. Logging all mesh names:");
     object.traverse((child) => { if (child.isMesh) console.log(child.name); });
-
-    // Fallback: Add a placeholder box so the user sees SOMETHING.
-    const placeholder = new THREE.Mesh(
-      new THREE.BoxGeometry(5, 5, 5),
-      new THREE.MeshStandardMaterial({ color: 0xff0000, wireframe: true }),
-    );
-    scene.add(placeholder);
-
-    // Add a text label if possible, or just log.
-    const msg = document.createElement("div");
-    msg.style.position = "absolute";
-    msg.style.bottom = "20px";
-    msg.style.left = "50%";
-    msg.style.transform = "translateX(-50%)";
-    msg.style.color = "orange";
-    msg.innerText = "Warning: No battery cells found in model. Showing wireframe box.";
-    document.body.appendChild(msg);
   }
 
   setBootDetail("3D model ready.");
@@ -2968,7 +3008,7 @@ function updateEloadFanSpin(delta) {
 }
 
 function handleModelLoadFailure(error) {
-  console.error("An error happened loading the FBX:", error);
+  console.error("An error happened loading the 3D model:", error);
   const message = (error && typeof error.message === "string" && error.message.trim().length > 0)
     ? `3D model loading error: ${error.message}`
     : "3D model loading error.";
@@ -2978,12 +3018,12 @@ function handleModelLoadFailure(error) {
 setBootStageProgress("bootstrap", 0.85);
 setBootStage("modelDownload", "Loading 3D model...");
 setBootDetail("Waiting for transfer...");
-console.log("Starting FBX load...");
-const loader = new FBXLoader();
+console.log("Starting GLB load...");
+const loader = new GLTFLoader();
 loader.load(
   MODEL_PATH,
-  (object) => {
-    void initializeLoadedModel(object).catch(handleModelLoadFailure);
+  (gltf) => {
+    void initializeLoadedModel(gltf.scene).catch(handleModelLoadFailure);
   },
   (xhr) => {
     const loaded = Number(xhr?.loaded) || 0;
@@ -3745,6 +3785,9 @@ const fanSpeed1El = document.querySelector("[data-fan-speed-1]");
 const fanSpeed2El = document.querySelector("[data-fan-speed-2]");
 const sysStatEl = document.querySelector("[data-sys-stat]");
 const loadPresentEl = document.querySelector("[data-load-present]");
+const chargeFetStatusEl = document.querySelector("[data-charge-fet-status]");
+const dischargeFetStatusEl = document.querySelector("[data-discharge-fet-status]");
+const fetThermalNoteEl = document.querySelector("[data-fet-thermal-note]");
 const thermalTrendEl = document.querySelector("[data-thermal-trend]");
 const cellGridEl = document.querySelector(".cell-grid");
 const detailPanel = document.querySelector("[data-detail-panel]");
@@ -3764,6 +3807,9 @@ const STATUS_WAITING = "Waiting for Data";
 const STATUS_CONNECTED = "Connected";
 const STATUS_SIMULATION = "Simulation Mode";
 const STATUS_SIM_COMMAND_BLOCKED = "Simulation ON: hardware commands blocked";
+const FET_MODE_CHARGE = "charge";
+const FET_MODE_DISCHARGE = "discharge";
+const FET_MODE_OFF = "off";
 const CELL_HISTORY_LENGTH = 45;
 const TREND_WIDTH = 260;
 const TREND_HEIGHT = 90;
@@ -3804,6 +3850,7 @@ let simulationIntervalId = null;
 let simulationStatusResetTimer = 0;
 let lastRealDashboardPayload = null;
 let simulationRestoreTimer = 0;
+let simulatedFetMode = FET_MODE_DISCHARGE;
 
 function createBlankState() {
   return {
@@ -3831,7 +3878,78 @@ function createBlankState() {
     },
     sys_stat: null,
     load_present: null,
+    fet_status: {
+      mode: null,
+      charge_enabled: null,
+      discharge_enabled: null,
+      thermal_shutdown: false,
+    },
   };
+}
+
+function normalizeFetMode(mode) {
+  if (typeof mode !== "string") return null;
+  const normalized = mode.trim().toLowerCase();
+  if (normalized === FET_MODE_CHARGE) return FET_MODE_CHARGE;
+  if (normalized === FET_MODE_DISCHARGE) return FET_MODE_DISCHARGE;
+  if (normalized === FET_MODE_OFF) return FET_MODE_OFF;
+  return null;
+}
+
+function buildFetStatus(mode, thermalShutdown = false) {
+  const normalizedMode = normalizeFetMode(mode);
+  const isThermal = Boolean(thermalShutdown);
+  if (!normalizedMode) {
+    return {
+      mode: null,
+      charge_enabled: null,
+      discharge_enabled: null,
+      thermal_shutdown: isThermal,
+    };
+  }
+  return {
+    mode: normalizedMode,
+    charge_enabled: !isThermal && normalizedMode === FET_MODE_CHARGE,
+    discharge_enabled: !isThermal && normalizedMode === FET_MODE_DISCHARGE,
+    thermal_shutdown: isThermal,
+  };
+}
+
+function normalizeFetStatus(fetStatus, fallback = null) {
+  const base = fallback && typeof fallback === "object" ? fallback : {};
+  const mode = normalizeFetMode(fetStatus?.mode) ?? normalizeFetMode(base.mode);
+  const chargeEnabled = typeof fetStatus?.charge_enabled === "boolean"
+    ? fetStatus.charge_enabled
+    : (typeof base.charge_enabled === "boolean" ? base.charge_enabled : null);
+  const dischargeEnabled = typeof fetStatus?.discharge_enabled === "boolean"
+    ? fetStatus.discharge_enabled
+    : (typeof base.discharge_enabled === "boolean" ? base.discharge_enabled : null);
+  const thermalShutdown = Boolean(fetStatus?.thermal_shutdown ?? base.thermal_shutdown ?? false);
+
+  if (!mode && chargeEnabled === null && dischargeEnabled === null) {
+    return buildFetStatus(null, thermalShutdown);
+  }
+
+  if (mode) {
+    return buildFetStatus(mode, thermalShutdown);
+  }
+
+  if (thermalShutdown) {
+    return buildFetStatus(FET_MODE_OFF, true);
+  }
+
+  if (chargeEnabled === true) return buildFetStatus(FET_MODE_CHARGE, false);
+  if (dischargeEnabled === true) return buildFetStatus(FET_MODE_DISCHARGE, false);
+  if (chargeEnabled === false && dischargeEnabled === false) return buildFetStatus(FET_MODE_OFF, false);
+
+  return buildFetStatus(null, thermalShutdown);
+}
+
+function inferLegacyFetStatus(balStatus) {
+  if (!balStatus || !isFiniteNumber(balStatus.charge)) {
+    return null;
+  }
+  return buildFetStatus(Boolean(balStatus.charge) ? FET_MODE_CHARGE : FET_MODE_DISCHARGE, false);
 }
 
 function populateCellGrid() {
@@ -4112,6 +4230,57 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+function updateFetIndicator(indicatorName, valueEl, enabled) {
+  const indicatorEl = document.querySelector(`[data-fet-indicator="${indicatorName}"]`);
+  if (!valueEl) return;
+
+  indicatorEl?.classList.remove("is-on", "is-off");
+  valueEl.classList.remove("is-on", "is-off");
+
+  if (typeof enabled !== "boolean") {
+    valueEl.textContent = "--";
+    return;
+  }
+
+  valueEl.textContent = enabled ? "ON" : "OFF";
+  valueEl.classList.add(enabled ? "is-on" : "is-off");
+  indicatorEl?.classList.add(enabled ? "is-on" : "is-off");
+}
+
+function syncFetControls(fetStatus) {
+  const normalized = normalizeFetStatus(fetStatus, currentState?.fet_status);
+  const mode = normalizeFetMode(normalized.mode);
+  const thermalShutdown = Boolean(normalized.thermal_shutdown);
+  const chargeEnabled = typeof normalized.charge_enabled === "boolean" ? normalized.charge_enabled : null;
+  const dischargeEnabled = typeof normalized.discharge_enabled === "boolean" ? normalized.discharge_enabled : null;
+
+  if (chargeOnBtn) chargeOnBtn.classList.toggle("active", !thermalShutdown && mode === FET_MODE_CHARGE);
+  if (chargeOffBtn) chargeOffBtn.classList.toggle("active", !thermalShutdown && mode === FET_MODE_DISCHARGE);
+  if (fetDischargeBtn) fetDischargeBtn.classList.toggle("active", !thermalShutdown && mode === FET_MODE_DISCHARGE);
+  if (fetOffBtn) fetOffBtn.classList.toggle("active", !thermalShutdown && mode === FET_MODE_OFF);
+
+  updateFetIndicator("charge", chargeFetStatusEl, chargeEnabled);
+  updateFetIndicator("discharge", dischargeFetStatusEl, dischargeEnabled);
+
+  if (fetThermalNoteEl) {
+    fetThermalNoteEl.hidden = !thermalShutdown;
+  }
+}
+
+function getEloadDacSliderValue() {
+  const slider = document.getElementById("eload-dac-slider");
+  const sliderValue = Number.parseInt(slider?.value ?? "", 10);
+  return Number.isFinite(sliderValue) ? sliderValue : 0;
+}
+
+function resolveEloadEnabled(payloadEnabled, fallbackEnabled = currentState?.eload?.enabled) {
+  if (typeof payloadEnabled === "boolean") return payloadEnabled;
+  if (typeof payloadEnabled === "number") return Boolean(payloadEnabled);
+  const sliderValue = getEloadDacSliderValue();
+  if (sliderValue > 0) return true;
+  return Boolean(fallbackEnabled);
+}
+
 function fanDutyFromAutoTemperature(tempC) {
   const points = [
     { temp: 30, duty: 20 },
@@ -4388,6 +4557,7 @@ function updateHud(data) {
   if (loadPresentEl) {
     loadPresentEl.textContent = isFiniteNumber(data.load_present) ? (data.load_present ? "Yes" : "No") : "--";
   }
+  syncFetControls(data.fet_status);
 
   // Trigger data pulse with speed based on data rate
   if (fan1Rpm > 0) {
@@ -4540,6 +4710,9 @@ function tick() {
 
     animateCells(delta);
     renderer.render(scene, camera);
+    if (bootLiquid) {
+      bootLiquid.render(performance.now());
+    }
     updatePartPopupFrame();
     refreshPartPopupData();
   } else if (activePageId === "eload" && eloadRenderer && eloadScene && eloadCamera) {
@@ -4648,15 +4821,11 @@ function sendBackendCommand(cmd) {
   }
 }
 
+<<<<<<< HEAD
 // --- E-Load UI Logic ---
-// Per-channel toggle controls (replaces single eload-toggle)
-const eloadChToggles = [
-  document.getElementById("eload-ch1-toggle"),
-  document.getElementById("eload-ch2-toggle"),
-  document.getElementById("eload-ch3-toggle"),
-  document.getElementById("eload-ch4-toggle"),
-];
-const eloadToggle = { get checked() { return eloadChToggles.some(t => t?.checked); } };  // compat shim
+// (E-Load Control channel toggles removed from UI)
+const eloadChToggles = [null, null, null, null];
+const eloadToggle = { get checked() { return true; } };  // compat shim — always on
 
 // Telemetry Elements
 const telemVoltage = document.getElementById("telem-voltage");
@@ -4669,10 +4838,13 @@ const telemS2 = document.getElementById("telem-s2");
 const telemS3 = document.getElementById("telem-s3");
 const telemS4 = document.getElementById("telem-s4");
 
+=======
+>>>>>>> f13dff7fc1b3c782c87599d23620674f7976d430
 // Charge Mode Elements
 const chargeOffBtn = document.getElementById("charge-off-btn");
 const chargeOnBtn = document.getElementById("charge-on-btn");
-let isChargeMode = false;
+const fetDischargeBtn = document.getElementById("fet-discharge-btn");
+const fetOffBtn = document.getElementById("fet-off-btn");
 
 // Cell Balancing Elements
 const balOffBtn = document.getElementById("bal-off-btn");
@@ -4719,26 +4891,46 @@ if (balSlider) {
 // Charge Mode Handlers (after balance elements are declared)
 if (chargeOffBtn) {
   chargeOffBtn.addEventListener("click", () => {
-    if (!isChargeMode) return;
-    isChargeMode = false;
-    chargeOffBtn.classList.add("active");
-    if (chargeOnBtn) chargeOnBtn.classList.remove("active");
-    sendBackendCommand("BMS:CHARGE:OFF");
+    if (simulationEnabled) {
+      simulatedFetMode = FET_MODE_DISCHARGE;
+      mockStream();
+    }
+    sendBackendCommand("BMS:DISCHARGE:ON");
   });
 }
 
 if (chargeOnBtn) {
   chargeOnBtn.addEventListener("click", () => {
-    if (isChargeMode) return;
-    isChargeMode = true;
-    chargeOnBtn.classList.add("active");
-    if (chargeOffBtn) chargeOffBtn.classList.remove("active");
     // Deactivate manual balancing when entering charge mode
     isBalEnabled = false;
     if (balAltBtn) balAltBtn.classList.remove("active");
     if (balOffBtn) balOffBtn.classList.add("active");
     if (balControls) balControls.classList.add("disabled");
+    if (simulationEnabled) {
+      simulatedFetMode = FET_MODE_CHARGE;
+      mockStream();
+    }
     sendBackendCommand("BMS:CHARGE:ON");
+  });
+}
+
+if (fetDischargeBtn) {
+  fetDischargeBtn.addEventListener("click", () => {
+    if (simulationEnabled) {
+      simulatedFetMode = FET_MODE_DISCHARGE;
+      mockStream();
+    }
+    sendBackendCommand("BMS:DISCHARGE:ON");
+  });
+}
+
+if (fetOffBtn) {
+  fetOffBtn.addEventListener("click", () => {
+    if (simulationEnabled) {
+      simulatedFetMode = FET_MODE_OFF;
+      mockStream();
+    }
+    sendBackendCommand("BMS:FETS:OFF");
   });
 }
 
@@ -4751,32 +4943,19 @@ const fanValue = document.getElementById("fan-value");
 const simulateDataToggle = document.getElementById("simulate-data-toggle");
 const simulateDataModeEl = document.getElementById("simulate-data-mode");
 
+// -- E-Load Fan Elements (Physical Control) --
+const eloadFanSlider = document.getElementById("eload-fan-slider");
+const eloadFanValue = document.getElementById("eload-fan-value");
+const telemEloadFanSpeed = document.querySelector("[data-eload-fan-speed]");
+
+let _eloadFanLastSendTime = 0;
+let _eloadFanPendingDuty = -1;
+let _eloadFanThrottleTimer = 0;
+
 let isFanAuto = true;
 
-// -- E-Load Per-Channel Toggle Controls --
-eloadChToggles.forEach((toggle, idx) => {
-  if (!toggle) return;
-  toggle.addEventListener("change", (e) => {
-    const ch = idx + 1;
-    const state = e.target.checked ? 1 : 0;
-    sendBackendCommand(`ELOAD:CH:${ch}:${state}`);
-  });
-});
+<<<<<<< HEAD
 
-const eloadAllOnBtn = document.getElementById("eload-all-on");
-const eloadAllOffBtn = document.getElementById("eload-all-off");
-if (eloadAllOnBtn) {
-  eloadAllOnBtn.addEventListener("click", () => {
-    sendBackendCommand("ELOAD:ON");
-    eloadChToggles.forEach((t) => { if (t) t.checked = true; });
-  });
-}
-if (eloadAllOffBtn) {
-  eloadAllOffBtn.addEventListener("click", () => {
-    sendBackendCommand("ELOAD:OFF");
-    eloadChToggles.forEach((t) => { if (t) t.checked = false; });
-  });
-}
 
 // -- E-Load Fan Visualization Controls --
 const eloadFanToggle = document.getElementById("eload-fan-toggle");
@@ -4801,6 +4980,57 @@ if (eloadFanSpeedSlider) {
   });
 }
 
+// -- E-Load Fan Physical Control Listeners --
+function _eloadFanSendThrottled(duty) {
+  const now = Date.now();
+  const elapsed = now - _eloadFanLastSendTime;
+  if (elapsed >= 100) {
+    _eloadFanLastSendTime = now;
+    _eloadFanPendingDuty = -1;
+    sendBackendCommand(`ELOAD:FAN:SET:${duty}`);
+  } else {
+    _eloadFanPendingDuty = duty;
+    if (!_eloadFanThrottleTimer) {
+      _eloadFanThrottleTimer = window.setTimeout(() => {
+        _eloadFanThrottleTimer = 0;
+        if (_eloadFanPendingDuty >= 0) {
+          _eloadFanLastSendTime = Date.now();
+          sendBackendCommand(`ELOAD:FAN:SET:${_eloadFanPendingDuty}`);
+          _eloadFanPendingDuty = -1;
+        }
+      }, 100 - elapsed);
+    }
+  }
+}
+
+if (eloadFanSlider) {
+  eloadFanSlider.addEventListener("input", (e) => {
+    const duty = clamp(parseInt(e.target.value, 10) || 0, 0, 100);
+    eloadFanSlider.value = duty.toString();
+    if (eloadFanValue) eloadFanValue.textContent = `${duty}%`;
+    updateSliderUI(eloadFanSlider);
+    _eloadFanSendThrottled(duty);
+
+    // Also update visualization if visualization slider exists
+    if (eloadFanSpeedSlider) {
+      eloadFanSpeedSlider.value = duty;
+      updateSliderUI(eloadFanSpeedSlider);
+      eloadFanSpinSpeed = duty / 100;
+      if (eloadFanSpeedValue) eloadFanSpeedValue.textContent = `${duty}%`;
+    }
+  });
+
+  eloadFanSlider.addEventListener("change", (e) => {
+    const duty = clamp(parseInt(e.target.value, 10) || 0, 0, 100);
+    if (_eloadFanThrottleTimer) { window.clearTimeout(_eloadFanThrottleTimer); _eloadFanThrottleTimer = 0; }
+    _eloadFanPendingDuty = -1;
+    _eloadFanLastSendTime = Date.now();
+    sendBackendCommand(`ELOAD:FAN:SET:${duty}`);
+  });
+}
+
+=======
+>>>>>>> f13dff7fc1b3c782c87599d23620674f7976d430
 // -- E-Load Heat Visualization Controls --
 const eloadHeatToggle = document.getElementById("eload-heat-toggle");
 const eloadHeatIntensitySlider = document.getElementById("eload-heat-intensity-slider");
@@ -5002,11 +5232,19 @@ function normalizeCells(cells) {
 }
 
 function updateEloadTelemetry(eload) {
+<<<<<<< HEAD
   // I_SET display (in mV)
   if (telemIset && isFiniteNumber(eload?.i_set)) {
     telemIset.textContent = `${eload.i_set.toFixed(1)} mV`;
   } else if (telemIset) {
     telemIset.textContent = "-- mV";
+  }
+
+  // Fan Speed display
+  if (telemEloadFanSpeed && isFiniteNumber(eload?.fan_ctrl?.rpm)) {
+    telemEloadFanSpeed.textContent = `${Math.round(eload.fan_ctrl.rpm)} RPM`;
+  } else if (telemEloadFanSpeed) {
+    telemEloadFanSpeed.textContent = "-- RPM";
   }
 
   // DAC code display
@@ -5056,26 +5294,16 @@ function updateEloadTelemetry(eload) {
     }
   }
 
-  // Sync per-channel toggles with telemetry
-  ["ch1", "ch2", "ch3", "ch4"].forEach((ch, idx) => {
-    if (typeof eload?.[ch] === "boolean" && eloadChToggles[idx]) {
-      eloadChToggles[idx].checked = eload[ch];
-    }
-  });
+  // (Per-channel toggle sync removed — E-Load Control UI removed)
 
+=======
+>>>>>>> f13dff7fc1b3c782c87599d23620674f7976d430
   // Push to shunt history circular buffers and redraw trend graphs
   ["s1", "s2", "s3", "s4"].forEach((ch) => {
-    if (isFiniteNumber(eload?.[ch])) {
-      const mv = eload[ch] * 1000;  // V -> mV for graph display
-      eloadShuntHistory[ch].push(mv);
-      if (eloadShuntHistory[ch].length > ELOAD_HISTORY_LENGTH) {
-        eloadShuntHistory[ch].shift();
-      }
-      drawEloadShuntTrend(ch);
-    }
+    // (Shunt current trend graphs removed)
   });
 
-
+<<<<<<< HEAD
   // Power summary cards
   const eloadActualVoltageEl = document.getElementById("eload-actual-voltage");
   const eloadActualCurrentEl = document.getElementById("eload-actual-current");
@@ -5094,6 +5322,8 @@ function updateEloadTelemetry(eload) {
       ? `${(eload.vout * 1000).toFixed(0)} mV` : "-- mV";
   }
 
+=======
+>>>>>>> f13dff7fc1b3c782c87599d23620674f7976d430
   // Drive thermal visualization from I_SET as proxy for heat
   // (actual current not measurable with 1mOhm shunts)
   // I_SET range: 0-185.6 mV → normalize to 0-1
@@ -5129,11 +5359,7 @@ function clearDashboardData(reason = "manual") {
   currentState = createBlankState();
   cellVoltageHistory.clear();
   trendDirtyCells.clear();
-  // Clear E-Load shunt trend history
-  ["s1", "s2", "s3", "s4"].forEach((ch) => {
-    eloadShuntHistory[ch] = [];
-    drawEloadShuntTrend(ch);
-  });
+  // (E-Load shunt trend history clearing removed)
   clearMeshTargets();
 
   updateHud(currentState);
@@ -5200,7 +5426,7 @@ function flushDashboardData() {
   if (data.eload) {
     const e = data.eload;
     currentState.eload = {
-      enabled: Boolean(e.enabled),
+      enabled: resolveEloadEnabled(e.enabled, currentState.eload?.enabled),
       i_set: isFiniteNumber(e.i_set) ? Number(e.i_set) : currentState.eload?.i_set || 0,
       dac: isFiniteNumber(e.dac) ? Number(e.dac) : currentState.eload?.dac || 0,
       vout: isFiniteNumber(e.vout) ? Number(e.vout) : currentState.eload?.vout || 0,
@@ -5210,11 +5436,28 @@ function flushDashboardData() {
       s3: isFiniteNumber(e.s3) ? Number(e.s3) : currentState.eload?.s3 || 0,
       s4: isFiniteNumber(e.s4) ? Number(e.s4) : currentState.eload?.s4 || 0,
       v_set: isFiniteNumber(e.v_set) ? Number(e.v_set) : currentState.eload?.v_set || 0,
+<<<<<<< HEAD
       ch1: typeof e.ch1 === "boolean" ? e.ch1 : currentState.eload?.ch1 ?? true,
       ch2: typeof e.ch2 === "boolean" ? e.ch2 : currentState.eload?.ch2 ?? true,
       ch3: typeof e.ch3 === "boolean" ? e.ch3 : currentState.eload?.ch3 ?? true,
       ch4: typeof e.ch4 === "boolean" ? e.ch4 : currentState.eload?.ch4 ?? true,
+      fan_ctrl: e.fan_ctrl ? {
+        duty: isFiniteNumber(e.fan_ctrl.duty) ? Number(e.fan_ctrl.duty) : 0,
+        rpm: isFiniteNumber(e.fan_ctrl.rpm) ? Number(e.fan_ctrl.rpm) : 0,
+      } : currentState.eload?.fan_ctrl || { duty: 0, rpm: 0 },
+=======
+>>>>>>> f13dff7fc1b3c782c87599d23620674f7976d430
     };
+
+    // Update E-Load Fan Slider UI if duty came from telemetry
+    if (data.eload.fan_ctrl && isFiniteNumber(data.eload.fan_ctrl.duty)) {
+      const d = clamp(data.eload.fan_ctrl.duty, 0, 100);
+      if (eloadFanSlider && document.activeElement !== eloadFanSlider) {
+        eloadFanSlider.value = `${Math.round(d)}`;
+        if (eloadFanValue) eloadFanValue.textContent = `${Math.round(d)}%`;
+        updateSliderUI(eloadFanSlider);
+      }
+    }
 
     // Trigger E-Load reveal on first real telemetry (or when connected)
     if (!eloadHasRevealed && !eloadSimulationEnabled) {
@@ -5239,15 +5482,12 @@ function flushDashboardData() {
     }
   }
 
-  if (data.bal_status && isFiniteNumber(data.bal_status.charge)) {
-    const chg = Boolean(data.bal_status.charge);
-    isChargeMode = chg;
-    if (chg) {
-      if (chargeOnBtn) chargeOnBtn.classList.add("active");
-      if (chargeOffBtn) chargeOffBtn.classList.remove("active");
-    } else {
-      if (chargeOffBtn) chargeOffBtn.classList.add("active");
-      if (chargeOnBtn) chargeOnBtn.classList.remove("active");
+  if (data.fet_status) {
+    currentState.fet_status = normalizeFetStatus(data.fet_status, currentState.fet_status);
+  } else {
+    const legacyFetStatus = inferLegacyFetStatus(data.bal_status);
+    if (legacyFetStatus) {
+      currentState.fet_status = legacyFetStatus;
     }
   }
 
@@ -5285,10 +5525,9 @@ function mockStream() {
     temperature: Number((24 + Math.random() * 6).toFixed(1)),
   }));
   const mockCurrent = Number(((Math.random() - 0.5) * 0.2).toFixed(3));
-  const mockVoltage = Number((36 + Math.random() * 2).toFixed(2));
-  const mockActualCurrent = Math.max(0, Math.abs(mockCurrent));
   const simulatedDuty = simulationFanDutyFromCells(cells);
   const simulatedRpm = estimateRpmFromDuty(simulatedDuty);
+  const dacValue = getEloadDacSliderValue();
 
   window.updateDashboard({
     __simulated: true,
@@ -5300,9 +5539,10 @@ function mockStream() {
       auto: isFanAuto,
       duty: simulatedDuty,
     },
+    fet_status: buildFetStatus(simulatedFetMode),
     eload: {
-      enabled: eloadToggle.checked,
-      dac: 0,
+      enabled: dacValue > 0,
+      dac: dacValue,
       i_set: 0,
       vout: 0,
       v: 5.0 + (Math.random() - 0.5) * 0.1,
@@ -5351,6 +5591,7 @@ function setSimulationMode(enabled) {
   }
 
   if (simulationEnabled) {
+    simulatedFetMode = normalizeFetMode(currentState?.fet_status?.mode) || FET_MODE_DISCHARGE;
     setConnectionStatus(true, "simulation");
     applySimulationStatusIndicator(STATUS_SIMULATION);
     mockStream();
@@ -5392,6 +5633,9 @@ function onWindowResize() {
   camera.updateProjectionMatrix();
   renderer.setSize(width, height);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  if (bootLiquid) {
+    bootLiquid.resize();
+  }
 
   // Also resize E-Load renderer
   if (eloadRenderer && eloadCamera) {
@@ -5485,22 +5729,87 @@ document.querySelectorAll(".page-tab").forEach((tab) => {
 
 window.__bmsSwitchPage = switchPage;
 
-// --- DAC Slider Control ---
+// --- DAC Input and Slider Control ---
 const eloadDacSlider = document.getElementById("eload-dac-slider");
-const eloadDacValue = document.getElementById("eload-dac-value");
+const eloadDacInput = document.getElementById("eload-dac-input");
+const eloadDacDec = document.getElementById("eload-dac-dec");
+const eloadDacInc = document.getElementById("eload-dac-inc");
+const eloadDacError = document.getElementById("eload-dac-error");
+
+function updateDacUI(rawVal) {
+  let val = Math.max(0, Math.min(4095, parseInt(rawVal, 10) || 0));
+  if (eloadDacSlider) {
+    eloadDacSlider.value = val;
+    updateSliderUI(eloadDacSlider);
+  }
+  if (eloadDacInput) {
+    eloadDacInput.value = (val / 1000).toFixed(3);
+  }
+  if (eloadDacError) {
+    eloadDacError.style.display = 'none';
+  }
+  return val;
+}
 
 if (eloadDacSlider) {
   eloadDacSlider.addEventListener("input", (event) => {
     // Update local UI immediately while dragging
+<<<<<<< HEAD
+    updateDacUI(event.target.value);
+=======
     const val = event.target.value;
     if (eloadDacValue) eloadDacValue.textContent = val;
     updateSliderUI(event.target);
+    if (simulationEnabled) {
+      mockStream();
+    }
+    if (eloadSimulationEnabled) {
+      mockEloadStream();
+    }
+>>>>>>> f13dff7fc1b3c782c87599d23620674f7976d430
   });
 
   eloadDacSlider.addEventListener("change", (event) => {
     // Send to firmware only when the drag is complete (mouse up)
-    const val = event.target.value;
+    const val = updateDacUI(event.target.value);
     sendBackendCommand(`ELOAD:DAC:${val}`);
+    if (eloadSimulationEnabled) {
+      mockEloadStream();
+    }
+  });
+}
+
+if (eloadDacInput) {
+  eloadDacDec.addEventListener("click", () => {
+    let raw = parseInt(eloadDacSlider.value, 10) || 0;
+    if (raw > 0) {
+      raw--;
+      updateDacUI(raw);
+      sendBackendCommand(`ELOAD:DAC:${raw}`);
+    }
+  });
+
+  eloadDacInc.addEventListener("click", () => {
+    let raw = parseInt(eloadDacSlider.value, 10) || 0;
+    if (raw < 4095) {
+      raw++;
+      updateDacUI(raw);
+      sendBackendCommand(`ELOAD:DAC:${raw}`);
+    }
+  });
+
+  eloadDacInput.addEventListener("change", (event) => {
+    let vStr = event.target.value;
+    let v = parseFloat(vStr);
+    if (isNaN(v) || v < 0 || v > 4.096) {
+      if (eloadDacError) eloadDacError.style.display = 'block';
+    } else {
+      if (eloadDacError) eloadDacError.style.display = 'none';
+      let raw = Math.round(v * 1000);
+      raw = Math.max(0, Math.min(4095, raw));
+      updateDacUI(raw);
+      sendBackendCommand(`ELOAD:DAC:${raw}`);
+    }
   });
 }
 
@@ -5513,9 +5822,10 @@ let eloadSimulationEnabled = false;
 let eloadSimulationIntervalId = null;
 
 function mockEloadStream() {
+  const dacValue = getEloadDacSliderValue();
   const eloadData = {
-    enabled: eloadToggle.checked,
-    dac: 0,
+    enabled: dacValue > 0,
+    dac: dacValue,
     vout: 0,
     i_set: 0,
     v: 5.0 + (Math.random() - 0.5) * 0.1,  // VSENSE ~5V USB
@@ -5524,10 +5834,13 @@ function mockEloadStream() {
     s3: Math.random() * 0.002,
     s4: Math.random() * 0.002,
     v_set: 0,
-    ch1: eloadChToggles[0]?.checked ?? true,
-    ch2: eloadChToggles[1]?.checked ?? true,
-    ch3: eloadChToggles[2]?.checked ?? true,
-    ch4: eloadChToggles[3]?.checked ?? true,
+<<<<<<< HEAD
+    ch1: true,
+    ch2: true,
+    ch3: true,
+    ch4: true,
+=======
+>>>>>>> f13dff7fc1b3c782c87599d23620674f7976d430
   };
 
   updateEloadTelemetry(eloadData);
@@ -5848,10 +6161,6 @@ markBootUiReady();
             s4: (pairs.s4 || 0) / 1000.0,
             enabled: Boolean(anyOn),
             v_set: 0,
-            ch1: Boolean(pairs.ch1),
-            ch2: Boolean(pairs.ch2),
-            ch3: Boolean(pairs.ch3),
-            ch4: Boolean(pairs.ch4),
           };
           window.updateDashboard?.({ eload: eloadPayload });
         }

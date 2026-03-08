@@ -41,6 +41,9 @@
 #define UV_TRIP           0x0A
 #define CELLBAL1          0x01
 #define CELLBAL2          0x02
+#define SYS_CTRL2_FETS_OFF      0xC0
+#define SYS_CTRL2_CHARGE_ON     0xC1
+#define SYS_CTRL2_DISCHARGE_ON  0xC2
 
 #define EVENS1             0x0A
 #define ODDS1              0x15
@@ -115,7 +118,13 @@ uint8_t  bal_alt_phase = 0;         // 0 = odd cells, 1 = even cells
 uint32_t bal_alt_last_toggle = 0;   // HAL_GetTick() of last phase switch
 
 // Charge Mode Variables
-uint8_t  charge_mode = 0;           // 0 = off (discharge mode), 1 = charge mode
+typedef enum {
+    FET_MODE_DISCHARGE = 0,
+    FET_MODE_CHARGE = 1,
+    FET_MODE_OFF = 2,
+} fet_mode_t;
+
+fet_mode_t requested_fet_mode = FET_MODE_DISCHARGE;
 uint8_t  thermal_shutdown = 0;      // 1 = FETs disabled due to overtemp
 #define  CHARGE_BAL_THRESHOLD 3.800f // balance cells above 3.8V during charging
 #define  THERMAL_CUTOFF_C    60.0f   // disable FETs above 60C
@@ -139,6 +148,11 @@ static void MX_TIM17_Init(void);
 void Fan_SetSpeed(uint8_t percent);
 uint32_t Fan_GetRPM(void);
 void Process_USB_Command(const char *cmd);
+static void Disable_Balancing_Output(void);
+static fet_mode_t Get_Active_FET_Mode(void);
+static uint8_t Charge_FET_Is_On(void);
+static uint8_t Discharge_FET_Is_On(void);
+static const char *FET_Mode_Name(fet_mode_t mode);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -265,11 +279,44 @@ float BQ_ReadCurrent(void) {
     return current_amps;
 }
 
+static void Disable_Balancing_Output(void) {
+    bal_active_mask = 0;
+    BQ_WriteReg(CELLBAL1, 0x00);
+    BQ_WriteReg(CELLBAL2, 0x00);
+}
+
+static fet_mode_t Get_Active_FET_Mode(void) {
+    if (thermal_shutdown) {
+        return FET_MODE_OFF;
+    }
+    return requested_fet_mode;
+}
+
+static uint8_t Charge_FET_Is_On(void) {
+    return Get_Active_FET_Mode() == FET_MODE_CHARGE ? 1 : 0;
+}
+
+static uint8_t Discharge_FET_Is_On(void) {
+    return Get_Active_FET_Mode() == FET_MODE_DISCHARGE ? 1 : 0;
+}
+
+static const char *FET_Mode_Name(fet_mode_t mode) {
+    switch (mode) {
+        case FET_MODE_CHARGE:
+            return "charge";
+        case FET_MODE_OFF:
+            return "off";
+        case FET_MODE_DISCHARGE:
+        default:
+            return "discharge";
+    }
+}
+
 void BQ_Init(void) {
     if (bms_addr == 0) return;
     BQ_WriteReg(SYS_STAT, 0xFF);
     BQ_WriteReg(SYS_CTRL1, 0x10);
-    BQ_WriteReg(SYS_CTRL2, 0xC0); // 0x40 if you want to re-enable OV, UV, OCD, & SCD delays
+    BQ_WriteReg(SYS_CTRL2, SYS_CTRL2_FETS_OFF); // 0x40 if you want to re-enable OV, UV, OCD, & SCD delays
 
 }
 
@@ -402,6 +449,11 @@ int main(void)
   __HAL_TIM_ENABLE_IT(&htim3, TIM_IT_UPDATE);  // Enable overflow interrupt for low-RPM tracking
   fan_tach_last_tick = HAL_GetTick();
 
+  HAL_GPIO_WritePin(BMS_BOOT_GPIO_Port, BMS_BOOT_Pin, GPIO_PIN_SET);
+  HAL_Delay(2);
+  HAL_GPIO_WritePin(BMS_BOOT_GPIO_Port, BMS_BOOT_Pin, GPIO_PIN_RESET);
+  HAL_Delay(420);
+
   // Initial Scan
   Discover_BMS();
 
@@ -517,20 +569,22 @@ int main(void)
         if (max_valid_temp > THERMAL_CUTOFF_C) {
             // OVERTEMP: disable both FETs immediately
             thermal_shutdown = 1;
-            BQ_WriteReg(SYS_CTRL2, 0xC0);
-            BQ_WriteReg(CELLBAL1, 0x00);
-            BQ_WriteReg(CELLBAL2, 0x00);
-            bal_active_mask = 0;
+            bal_enabled = 0;
+            bal_alt_enabled = 0;
+            BQ_WriteReg(SYS_CTRL2, SYS_CTRL2_FETS_OFF);
+            Disable_Balancing_Output();
         } else if (thermal_shutdown && max_valid_temp < THERMAL_RESUME_C && max_valid_temp > -100.0f) {
             // Temp dropped below resume threshold — clear shutdown
             thermal_shutdown = 0;
         }
 
         if (!thermal_shutdown) {
-            if (charge_mode) {
-                BQ_WriteReg(SYS_CTRL2, 0xC1); // charge ON, discharge OFF
+            if (requested_fet_mode == FET_MODE_CHARGE) {
+                BQ_WriteReg(SYS_CTRL2, SYS_CTRL2_CHARGE_ON); // charge ON, discharge OFF
+            } else if (requested_fet_mode == FET_MODE_DISCHARGE) {
+                BQ_WriteReg(SYS_CTRL2, SYS_CTRL2_DISCHARGE_ON); // discharge ON, charge OFF
             } else {
-                BQ_WriteReg(SYS_CTRL2, 0xC2); // discharge ON, charge OFF
+                BQ_WriteReg(SYS_CTRL2, SYS_CTRL2_FETS_OFF); // both FETs explicitly off
             }
         }
     }
@@ -543,9 +597,8 @@ int main(void)
         bal_active_mask = 0;
         if (thermal_shutdown) {
             // No balancing during thermal shutdown
-            BQ_WriteReg(CELLBAL1, 0x00);
-            BQ_WriteReg(CELLBAL2, 0x00);
-        } else if (charge_mode) {
+            Disable_Balancing_Output();
+        } else if (Get_Active_FET_Mode() == FET_MODE_CHARGE) {
             // CHARGE MODE: balance cells above 3.8V with smart even/odd alternation
             uint8_t cellbal1 = 0, cellbal2 = 0;
             uint16_t need_bal = 0;  // bitmask of cells needing balance
@@ -559,8 +612,7 @@ int main(void)
 
             if (need_bal == 0) {
                 // No cells above 3.8V — nothing to balance
-                BQ_WriteReg(CELLBAL1, 0x00);
-                BQ_WriteReg(CELLBAL2, 0x00);
+                Disable_Balancing_Output();
             } else {
                 // Check if we have both even and odd cells needing balance
                 uint8_t has_odd  = (need_bal & 0x0155) ? 1 : 0; // bits 0,2,4,6,8
@@ -603,7 +655,7 @@ int main(void)
                 BQ_WriteReg(CELLBAL1, cellbal1);
                 BQ_WriteReg(CELLBAL2, cellbal2);
             }
-        } else if (bal_enabled && bal_alt_enabled) {
+        } else if (Get_Active_FET_Mode() == FET_MODE_DISCHARGE && bal_enabled && bal_alt_enabled) {
             // BALANCE CELLS MODE: threshold + alternating even/odd
             if ((HAL_GetTick() - bal_alt_last_toggle) >= BAL_ALT_PERIOD_MS) {
                 bal_alt_phase ^= 1;
@@ -644,8 +696,7 @@ int main(void)
             BQ_WriteReg(CELLBAL1, cellbal1);
             BQ_WriteReg(CELLBAL2, cellbal2);
         } else {
-            BQ_WriteReg(CELLBAL1, 0x00);
-            BQ_WriteReg(CELLBAL2, 0x00);
+            Disable_Balancing_Output();
         }
     }
 
@@ -689,6 +740,7 @@ int main(void)
         "Fan ->  %lu RPM\r\n"
         "fan_auto:%d fan_duty:%d\r\n"
     	"SYS_STAT:%x Load Present:%x\r\n"
+        "fet_mode:%s charge_fet:%d discharge_fet:%d thermal_shutdown:%d\r\n"
         "bal_en:%d bal_thresh:%d bal_mask:%d bal_alt:%d charge:%d\r\n\r\n",
         v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9],
         t_celsius[0], t_celsius[1], t_celsius[2], t_celsius[3], t_celsius[4],
@@ -697,7 +749,8 @@ int main(void)
         fan_rpm,
         fan_auto_mode, (int)effective_duty,
         faultStatus[0], loadPresent[0],
-        (int)bal_enabled, (int)bal_threshold_mv, (int)bal_active_mask, (int)bal_alt_enabled, (int)charge_mode);
+        FET_Mode_Name(Get_Active_FET_Mode()), (int)Charge_FET_Is_On(), (int)Discharge_FET_Is_On(), (int)thermal_shutdown,
+        (int)bal_enabled, (int)bal_threshold_mv, (int)bal_active_mask, (int)bal_alt_enabled, (int)(Get_Active_FET_Mode() == FET_MODE_CHARGE));
     CDC_Transmit_FS((uint8_t*)data_buffer, len);
 
     HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_11);
@@ -1195,6 +1248,14 @@ static void MX_GPIO_Init(void)
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
+  HAL_GPIO_WritePin(BMS_BOOT_GPIO_Port, BMS_BOOT_Pin, GPIO_PIN_RESET);
+
+  GPIO_InitStruct.Pin = BMS_BOOT_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(BMS_BOOT_GPIO_Port, &GPIO_InitStruct);
+
   /* USER CODE END MX_GPIO_Init_2 */
 }
 
@@ -1237,9 +1298,7 @@ void Process_USB_Command(const char *cmd) {
     if (strcmp(cmd, "BMS:BAL:OFF") == 0) {
         bal_enabled = 0;
         bal_alt_enabled = 0;
-        bal_active_mask = 0;
-        BQ_WriteReg(CELLBAL1, 0x00);
-        BQ_WriteReg(CELLBAL2, 0x00);
+        Disable_Balancing_Output();
         return;
     }
 
@@ -1256,9 +1315,7 @@ void Process_USB_Command(const char *cmd) {
     if (strcmp(cmd, "BMS:BAL:ALT:OFF") == 0) {
         bal_alt_enabled = 0;
         bal_enabled = 0;
-        bal_active_mask = 0;
-        BQ_WriteReg(CELLBAL1, 0x00);
-        BQ_WriteReg(CELLBAL2, 0x00);
+        Disable_Balancing_Output();
         return;
     }
 
@@ -1273,22 +1330,32 @@ void Process_USB_Command(const char *cmd) {
 
     // BMS:CHARGE:ON — enable charge mode (charge FET on, discharge FET off)
     if (strcmp(cmd, "BMS:CHARGE:ON") == 0) {
-        charge_mode = 1;
+        requested_fet_mode = FET_MODE_CHARGE;
         thermal_shutdown = 0;
         // Disable manual balancing when entering charge mode
         bal_enabled = 0;
         bal_alt_enabled = 0;
+        Disable_Balancing_Output();
         return;
     }
 
     // BMS:CHARGE:OFF — disable charge mode (back to discharge mode)
-    if (strcmp(cmd, "BMS:CHARGE:OFF") == 0) {
-        charge_mode = 0;
+    if (strcmp(cmd, "BMS:DISCHARGE:ON") == 0 || strcmp(cmd, "BMS:CHARGE:OFF") == 0) {
+        requested_fet_mode = FET_MODE_DISCHARGE;
         thermal_shutdown = 0;
-        bal_active_mask = 0;
-        BQ_WriteReg(CELLBAL1, 0x00);
-        BQ_WriteReg(CELLBAL2, 0x00);
-        BQ_WriteReg(SYS_CTRL2, 0xC0); // both FETs off until next loop sets correct mode
+        Disable_Balancing_Output();
+        BQ_WriteReg(SYS_CTRL2, SYS_CTRL2_FETS_OFF); // both FETs off until next loop sets correct mode
+        return;
+    }
+
+    // BMS:FETS:OFF â€” request both FETs off until a new mode is commanded
+    if (strcmp(cmd, "BMS:FETS:OFF") == 0) {
+        requested_fet_mode = FET_MODE_OFF;
+        thermal_shutdown = 0;
+        bal_enabled = 0;
+        bal_alt_enabled = 0;
+        Disable_Balancing_Output();
+        BQ_WriteReg(SYS_CTRL2, SYS_CTRL2_FETS_OFF);
         return;
     }
 }

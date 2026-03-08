@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BMS Dashboard Startup</title>
+  <link rel="stylesheet" href="startup.css" />
+</head>
+
+<body>
+  <canvas id="startup-source-canvas" class="startup-source-canvas" aria-hidden="true"></canvas>
+
+  <main class="startup-shell" aria-live="polite">
+    <section id="startup-card" class="startup-card" role="status" aria-label="Loading BMS Dashboard">
+      <canvas id="startup-liquid-canvas" class="startup-card__liquid" aria-hidden="true"></canvas>
+      <div class="startup-card__sheen" aria-hidden="true"></div>
+
+      <div class="startup-card__content">
+        <div class="startup-card__logo-frame">
+          <img
+            src="/runtime-assets/startup-logo.png"
+            alt="BMS Logo"
+            class="startup-card__logo"
+          />
+        </div>
+
+        <div class="startup-card__copy">
+          <p id="startup-stage" class="startup-card__stage">Initializing dashboard...</p>
+
+          <div class="startup-card__meta">
+            <p id="startup-detail" class="startup-card__detail">Preparing startup surface...</p>
+            <span id="startup-percent" class="startup-card__percent">0%</span>
+          </div>
+
+          <div class="startup-card__progress-shell" aria-hidden="true">
+            <div class="startup-card__progress-track">
+              <div id="startup-progress-fill" class="startup-card__progress-fill"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="startup.js"></script>
+</body>
+
+</html>
