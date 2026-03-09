@@ -686,6 +686,7 @@ let eloadFetHeatLevels = [0.5, 0.5, 0.5, 0.5]; // per-FET heat (0-1), telemetry-
 let eloadThermalHeatRadius = 1.0; // world-space radius for heat falloff
 let eloadFanSpinEnabled = true;
 let eloadFanSpinSpeed = 0.6;      // 0..1 normalized (default 60%)
+let eloadFanAutoMode = true; // Added auto mode tracking
 let eloadHeatVizEnabled = true;
 let eloadHeatIntensity = 0.5;     // 0..1 normalized
 let eloadEnvMap = null;
@@ -4911,6 +4912,23 @@ if (chargeOnBtn) {
   });
 }
 
+// E-Load Default Configuration (reset on connect/disconnect)
+function resetEloadControls() {
+  eloadFanAutoMode = false;
+  eloadFanSpinEnabled = true; // Set to true to start spinning
+  eloadFanSpinSpeed = 0.6; // Default 60 speed
+
+  if (eloadFanAutoBtn) eloadFanAutoBtn.classList.remove("active");
+  if (eloadFanManualBtn) eloadFanManualBtn.classList.add("active");
+  if (eloadFanManualControls) eloadFanManualControls.classList.remove("disabled");
+
+  if (eloadFanSlider) {
+    eloadFanSlider.value = 60;
+    updateSliderUI(eloadFanSlider);
+  }
+  if (eloadFanValue) eloadFanValue.textContent = "60%";
+}
+
 if (fetDischargeBtn) {
   fetDischargeBtn.addEventListener("click", () => {
     if (simulationEnabled) {
@@ -5030,6 +5048,11 @@ const eloadHeatToggle = document.getElementById("eload-heat-toggle");
 const eloadHeatIntensitySlider = document.getElementById("eload-heat-intensity-slider");
 const eloadHeatIntensityValue = document.getElementById("eload-heat-intensity-value");
 const eloadHeatIntensityControls = document.getElementById("eload-heat-intensity-controls");
+
+// New E-Load Fan Controls
+const eloadFanAutoBtn = document.getElementById("eload-fan-auto-btn");
+const eloadFanManualBtn = document.getElementById("eload-fan-manual-btn");
+const eloadFanManualControls = document.getElementById("eload-fan-manual-controls");
 
 if (eloadHeatToggle) {
   eloadHeatToggle.addEventListener("change", (e) => {
@@ -5536,6 +5559,10 @@ function mockStream() {
       s3: Math.random() * 0.002,
       s4: Math.random() * 0.002,
       v_set: 0,
+      fan_ctrl: {
+        duty: parseFloat(eloadFanSlider ? eloadFanSlider.value : 60),
+        rpm: estimateRpmFromDuty(parseFloat(eloadFanSlider ? eloadFanSlider.value : 60))
+      }
     },
   });
 }

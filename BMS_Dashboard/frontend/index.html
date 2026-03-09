@@ -398,6 +398,34 @@
             <p class="metric-card__hint" id="eload-simulate-mode">Actual Testing Mode</p>
           </div>
         </section>
+        <!-- Fan Control -->
+        <section class="hud__section glass-panel">
+          <div class="timeline__header">
+            <p class="eyebrow">Fan Cooling</p>
+            <div class="mode-selector small">
+              <button class="mode-btn" id="eload-fan-auto-btn" style="display:none">Auto</button>
+              <button class="mode-btn active" id="eload-fan-manual-btn">Manual</button>
+            </div>
+          </div>
+          <div class="control-group" id="eload-fan-manual-controls">
+            <p class="metric-card__label">PWM Duty Cycle</p>
+            <div class="input-row">
+              <div class="glass-slider" data-glass-slider>
+                <input type="range" min="0" max="100" step="5" value="60" id="eload-fan-slider"
+                  class="glass-slider__input">
+                <div class="glass-slider__track">
+                  <div class="glass-slider__progress" style="width: 60%;"></div>
+                </div>
+                <div class="glass-slider__thumb" style="left: 60%;">
+                  <div class="glass-slider__thumb-filter"></div>
+                  <div class="glass-slider__thumb-overlay"></div>
+                  <div class="glass-slider__thumb-specular"></div>
+                </div>
+              </div>
+              <span class="value-display" id="eload-fan-value">60%</span>
+            </div>
+          </div>
+        </section>
       </div>
 
       <!-- Right Column: E-Load Controls -->
