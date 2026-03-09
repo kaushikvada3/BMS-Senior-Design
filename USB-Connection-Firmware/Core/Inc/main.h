@@ -70,9 +70,6 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN Private defines */
 
-#define BMS_BOOT_Pin GPIO_PIN_4
-#define BMS_BOOT_GPIO_Port GPIOB
-
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

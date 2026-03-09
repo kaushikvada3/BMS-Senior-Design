@@ -5132,6 +5132,14 @@ if (clearFaultsBtn) {
   });
 }
 
+// Pulse Boot Pin button — triggers BMS:BOOT:PULSE
+const wakeBmsBtn = document.getElementById("wake-bms-btn");
+if (wakeBmsBtn) {
+  wakeBmsBtn.addEventListener("click", () => {
+    sendBackendCommand("BMS:BOOT:PULSE");
+  });
+}
+
 fanAutoBtn.addEventListener("click", () => {
   setFanMode(true);
   sendBackendCommand("FAN:AUTO");

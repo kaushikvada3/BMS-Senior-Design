@@ -1,16 +1,10 @@
-20:04:26 **** Build of configuration Debug for project USB-Connection-Firmware ****
+21:43:05 **** Incremental Build of configuration Debug for project USB-Connection-Firmware ****
 make -j11 all 
-arm-none-eabi-gcc -o "USB-Connection-Firmware.elf" @"objects.list"   -mcpu=cortex-m4 -T"/Users/kaushikvada/Documents/BMS-Senior-Design/USB-Connection-Firmware/STM32F303RCTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="USB-Connection-Firmware.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
-Finished building target: USB-Connection-Firmware.elf
- 
 arm-none-eabi-size  USB-Connection-Firmware.elf 
-arm-none-eabi-objdump -h -S USB-Connection-Firmware.elf  > "USB-Connection-Firmware.list"
    text	   data	    bss	    dec	    hex	filename
-  75544	    840	  10896	  87280	  154f0	USB-Connection-Firmware.elf
+  76176	    844	  10892	  87912	  15768	USB-Connection-Firmware.elf
 Finished building: default.size.stdout
  
-Finished building: USB-Connection-Firmware.list
- 
 
-20:04:27 Build Finished. 0 errors, 0 warnings. (took 434ms)
+21:43:05 Build Finished. 0 errors, 0 warnings. (took 147ms)
 
