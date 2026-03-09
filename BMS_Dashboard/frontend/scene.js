@@ -686,7 +686,7 @@ let eloadFetHeatLevels = [0.5, 0.5, 0.5, 0.5]; // per-FET heat (0-1), telemetry-
 let eloadThermalHeatRadius = 1.0; // world-space radius for heat falloff
 let eloadFanSpinEnabled = true;
 let eloadFanSpinSpeed = 0.6;      // 0..1 normalized (default 60%)
-let eloadFanAutoMode = true; // Added auto mode tracking
+let eloadFanAutoMode = false; // Added auto mode tracking
 let eloadHeatVizEnabled = true;
 let eloadHeatIntensity = 0.5;     // 0..1 normalized
 let eloadEnvMap = null;
@@ -5221,6 +5221,31 @@ function setFanMode(auto) {
   }
 }
 
+function setEloadFanMode(auto) {
+  eloadFanAutoMode = auto;
+  if (auto) {
+    if (eloadFanAutoBtn) eloadFanAutoBtn.classList.add("active");
+    if (eloadFanManualBtn) eloadFanManualBtn.classList.remove("active");
+    if (eloadFanManualControls) eloadFanManualControls.classList.add("disabled");
+  } else {
+    if (eloadFanAutoBtn) eloadFanAutoBtn.classList.remove("active");
+    if (eloadFanManualBtn) eloadFanManualBtn.classList.add("active");
+    if (eloadFanManualControls) eloadFanManualControls.classList.remove("disabled");
+  }
+}
+
+if (eloadFanAutoBtn) {
+  eloadFanAutoBtn.addEventListener("click", () => {
+    setEloadFanMode(true);
+  });
+}
+
+if (eloadFanManualBtn) {
+  eloadFanManualBtn.addEventListener("click", () => {
+    setEloadFanMode(false);
+  });
+}
+
 // --- Real Data Injection ---
 let pendingDashboardData = null;
 let pendingDashboardFrame = 0;
@@ -5275,6 +5300,37 @@ function updateEloadTelemetry(eload) {
     telemVout.textContent = `${(eload.vout * 1000).toFixed(0)} mV`;
   } else if (telemVout) {
     telemVout.textContent = "-- mV";
+  }
+
+  // Thermistor Temp display
+  const eloadThermistorTempEl = document.getElementById("eload-thermistor-temp");
+  if (eloadThermistorTempEl && isFiniteNumber(eload?.temp) && eload.temp > -90) {
+    eloadThermistorTempEl.textContent = `${eload.temp.toFixed(1)} \u00B0C`;
+
+    // Auto Fan Speed Computation
+    if (typeof eloadFanAutoMode !== "undefined" && eloadFanAutoMode) {
+      let calcDuty = ((eload.temp - 25) / (40 - 25)) * 100;
+      calcDuty = clamp(calcDuty, 0, 100);
+      const intDuty = Math.round(calcDuty);
+
+      if (eloadFanSlider && parseInt(eloadFanSlider.value, 10) !== intDuty) {
+        eloadFanSlider.value = intDuty.toString();
+        if (eloadFanValue) eloadFanValue.textContent = `${intDuty}%`;
+        updateSliderUI(eloadFanSlider);
+        _eloadFanSendThrottled(intDuty);
+
+        if (typeof eloadFanSpeedSlider !== "undefined" && eloadFanSpeedSlider) {
+          eloadFanSpeedSlider.value = intDuty;
+          updateSliderUI(eloadFanSpeedSlider);
+          eloadFanSpinSpeed = intDuty / 100;
+          if (typeof eloadFanSpeedValue !== "undefined" && eloadFanSpeedValue) {
+            eloadFanSpeedValue.textContent = `${intDuty}%`;
+          }
+        }
+      }
+    }
+  } else if (eloadThermistorTempEl) {
+    eloadThermistorTempEl.textContent = "-- \u00B0C";
   }
 
   // VSENSE display (in mV)
@@ -5447,6 +5503,7 @@ function flushDashboardData() {
       s3: isFiniteNumber(e.s3) ? Number(e.s3) : currentState.eload?.s3 || 0,
       s4: isFiniteNumber(e.s4) ? Number(e.s4) : currentState.eload?.s4 || 0,
       v_set: isFiniteNumber(e.v_set) ? Number(e.v_set) : currentState.eload?.v_set || 0,
+      temp: isFiniteNumber(e.temp) ? Number(e.temp) : currentState.eload?.temp || -99.9,
       ch1: typeof e.ch1 === "boolean" ? e.ch1 : currentState.eload?.ch1 ?? true,
       ch2: typeof e.ch2 === "boolean" ? e.ch2 : currentState.eload?.ch2 ?? true,
       ch3: typeof e.ch3 === "boolean" ? e.ch3 : currentState.eload?.ch3 ?? true,
@@ -5559,6 +5616,7 @@ function mockStream() {
       s3: Math.random() * 0.002,
       s4: Math.random() * 0.002,
       v_set: 0,
+      temp: Number((24 + Math.random() * 6).toFixed(1)),
       fan_ctrl: {
         duty: parseFloat(eloadFanSlider ? eloadFanSlider.value : 60),
         rpm: estimateRpmFromDuty(parseFloat(eloadFanSlider ? eloadFanSlider.value : 60))

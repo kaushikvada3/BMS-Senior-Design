@@ -398,12 +398,28 @@
             <p class="metric-card__hint" id="eload-simulate-mode">Actual Testing Mode</p>
           </div>
         </section>
+        <!-- Thermistor Temperature -->
+        <section class="hud__section glass-panel">
+          <div class="timeline__header">
+            <p class="eyebrow">Ambient Temp</p>
+          </div>
+          <div class="control-group">
+            <div style="font-size: 2em; text-align: center; color: var(--accent-color, #0a84ff); font-weight: 600;"
+              id="eload-thermistor-temp">
+              -- °C
+            </div>
+            <p class="metric-card__hint" style="text-align: center; margin-top: 8px;">
+              Sensor Model: B57861s0103H040
+            </p>
+          </div>
+        </section>
+
         <!-- Fan Control -->
         <section class="hud__section glass-panel">
           <div class="timeline__header">
             <p class="eyebrow">Fan Cooling</p>
             <div class="mode-selector small">
-              <button class="mode-btn" id="eload-fan-auto-btn" style="display:none">Auto</button>
+              <button class="mode-btn" id="eload-fan-auto-btn">Auto</button>
               <button class="mode-btn active" id="eload-fan-manual-btn">Manual</button>
             </div>
           </div>

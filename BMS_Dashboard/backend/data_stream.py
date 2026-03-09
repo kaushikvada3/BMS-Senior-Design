@@ -313,7 +313,7 @@ class SerialWorker(QObject):
             return self._finalize_pending_frame(force=False)
 
         # Check if this is E-Load format (simplified, new, or old)
-        if ('CH1=' in line and 'CH2=' in line) or ('I_SET=' in line and 'DAC=' in line) or ('DAC_set' in line and 'VSENSE' in line):
+        if ('CH1=' in line and 'CH2=' in line) or ('I_SET=' in line and 'DAC=' in line) or ('DAC_set' in line and 'VSENSE' in line) or ('S1=' in line and 'TEMP=' in line):
             return self._parse_eload_string_format(line)
 
         json_frame = self._try_parse_json_payload(line)
@@ -742,8 +742,9 @@ class SerialWorker(QObject):
         """
         import re
 
-        # Match KEY=INTEGER pairs (works for both formats)
-        pattern = r'(\w+)=(\d+)'
+        # Match KEY=NUMBER pairs (works for both formats, supports floats)
+        # Also handles empty values like `TEMP= ` gracefully by ignoring them or skipping
+        pattern = r'(\w+)=([-+]?(?:\d+\.\d+|\d+|\.\d+)?)'
         matches = re.findall(pattern, line)
 
         if not matches:
@@ -751,16 +752,21 @@ class SerialWorker(QObject):
 
         raw = {}
         for key, value_str in matches:
-            raw[key.lower()] = int(value_str)
+            if not value_str.strip():
+                continue
+            if '.' in value_str:
+                raw[key.lower()] = float(value_str)
+            else:
+                raw[key.lower()] = int(value_str)
 
         # Detect simplified format (CH1-CH4, no I_SET/DAC/VOUT/VSENSE)
-        if 'ch1' in raw:
-            # Simplified firmware format: S1=200 S2=198 S3=201 S4=199 CH1=1 CH2=1 CH3=0 CH4=1
-            any_on = raw.get('ch1', 0) or raw.get('ch2', 0) or raw.get('ch3', 0) or raw.get('ch4', 0)
+        if 's1' in raw and 'dac' in raw:
+            # Simplified firmware format: S1=200 S2=198 ... DAC=0 TEMP=24.5
+            any_on = raw.get('ch1', 1) or raw.get('ch2', 1) or raw.get('ch3', 1) or raw.get('ch4', 1)
             eload_data = {
                 'eload': {
                     'i_set': 0.0,
-                    'dac': 0,
+                    'dac': raw.get('dac', 0),
                     'vout': 0.0,
                     'v': 0.0,
                     's1': raw.get('s1', 0) / 1000.0,
@@ -769,9 +775,22 @@ class SerialWorker(QObject):
                     's4': raw.get('s4', 0) / 1000.0,
                     'enabled': bool(any_on),
                     'v_set': 0.0,
+                    'temp': raw.get('temp', -99.9),
+                    'raw_adc': raw.get('raw_adc', 0)
                 }
             }
-        elif 'i_set' in raw:
+
+            # Map RAW_ADC to temperature if available
+            raw_adc = eload_data['eload']['raw_adc']
+            if raw_adc > 0 and raw_adc < 4095:
+                import math
+                try:
+                    r_therm = 10000.0 * (raw_adc / (4095.0 - raw_adc))
+                    inv_t = (1.0 / 298.15) + (1.0 / 3988.0) * math.log(r_therm / 10000.0)
+                    eload_data['eload']['temp'] = (1.0 / inv_t) - 273.15
+                except ValueError:
+                    pass
+        elif 'dac' in raw:
             # Legacy firmware format with I_SET/DAC — all integer values
             eload_data = {
                 'eload': {
@@ -785,8 +804,21 @@ class SerialWorker(QObject):
                     's4': raw.get('s4', 0) / 1000.0,
                     'enabled': bool(raw.get('en', 0)),
                     'v_set': raw.get('vout', 0) / 1000.0,      # alias for compat
+                    'temp': raw.get('temp', -99.9),
+                    'raw_adc': raw.get('raw_adc', 0)
                 }
             }
+
+            # Map RAW_ADC to temperature if available
+            raw_adc = eload_data['eload']['raw_adc']
+            if raw_adc > 0 and raw_adc < 4095:
+                import math
+                try:
+                    r_therm = 10000.0 * (raw_adc / (4095.0 - raw_adc))
+                    inv_t = (1.0 / 298.15) + (1.0 / 3988.0) * math.log(r_therm / 10000.0)
+                    eload_data['eload']['temp'] = (1.0 / inv_t) - 273.15
+                except ValueError:
+                    pass
         else:
             # Old format fallback
             eload_data = {
@@ -1253,6 +1285,8 @@ class SerialWorker(QObject):
                     "voltage": float(measured_voltage if measured_voltage is not None else 0.0),
                     "actual_current": float(measured_current if measured_current is not None else 0.0),
                     "power": float(power_value if power_value is not None else 0.0),
+                    "temp": float(eload.get("temp", -99.9)),
+                    "raw_adc": int(eload.get("raw_adc", 0)),
                 },
                 "thermistors": {
                     "raw": raw.get("ntc_raw", []),

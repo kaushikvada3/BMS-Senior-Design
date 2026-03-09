@@ -24,6 +24,7 @@
 /* USER CODE BEGIN Includes */
 #include "mcp4725.h"
 #include "usbd_cdc_if.h"
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -53,6 +54,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
+ADC_HandleTypeDef hadc3;
 DMA_HandleTypeDef hdma_adc1;
 
 I2C_HandleTypeDef hi2c1;
@@ -76,18 +78,17 @@ static HAL_StatusTypeDef dac_status =
 static uint16_t dac_value = 0U; /* current DAC setting */
 
 static uint8_t i2c_devices_found = 0U; /* count from bus scan */
-static uint8_t i2c_scan_done = 0U;     /* 1 after scan completes */
 static char i2c_scan_buf[128];         /* scan result string */
 /* Per-channel load state: 1=ON (GPIO LOW, PNP active), 0=OFF (GPIO HIGH, PNP
- * off) Index 0=CH1(PB0), 1=CH2(PB10), 2=CH3(PC5), 3=CH4(PB1) */
-static uint8_t chan_enabled[4] = {1U, 1U, 1U, 1U}; /* all ON at startup */
+ * off) Index 0=CH1(PB0), 1=CH2(PB10), 2=CH3(PC5), 3=CH4(Repurposed) */
+static uint8_t chan_enabled[4] = {1U, 1U, 1U, 0U}; /* all ON at startup */
 
 static GPIO_TypeDef *const chan_port[4] = {OFF_GPIO_Port, LOAD_1_GPIO_Port,
-                                           LOAD_2_GPIO_Port, LOAD_3_GPIO_Port};
-static const uint16_t chan_pin[4] = {OFF_Pin, LOAD_1_Pin, LOAD_2_Pin,
-                                     LOAD_3_Pin};
+                                           LOAD_2_GPIO_Port, NULL};
+static const uint16_t chan_pin[4] = {OFF_Pin, LOAD_1_Pin, LOAD_2_Pin, 0};
 
 static uint16_t fan_duty = 60U; /* Fan duty cycle in percent (0-100) */
+static float env_temp_c = 0.0f; /* Calculated temperature from PB1 thermistor */
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -98,6 +99,7 @@ static void MX_ADC1_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM17_Init(void);
+static void MX_ADC3_Init(void);
 /* USER CODE BEGIN PFP */
 static uint8_t usb_is_configured(void);
 static HAL_StatusTypeDef clock_try_hse30_pll72_usb48(void);
@@ -189,7 +191,7 @@ static HAL_StatusTypeDef clock_try_hsi_pll48_usb48(void) {
 
 /* ---- Load channel helpers ---- */
 static void chan_apply(uint8_t ch) {
-  if (ch >= 4U)
+  if (ch >= 4U || chan_port[ch] == NULL)
     return;
   /* GPIO LOW = PNP ON = load active; GPIO HIGH = PNP OFF = no load */
   HAL_GPIO_WritePin(chan_port[ch], chan_pin[ch],
@@ -209,6 +211,26 @@ static void Fan_SetSpeed(uint8_t percent) {
   /* Scale 0-100% to 0-1919 (TIM17 period) */
   uint32_t compare = (uint32_t)percent * 1919U / 100U;
   __HAL_TIM_SET_COMPARE(&htim17, TIM_CHANNEL_1, (uint16_t)compare);
+}
+
+/* ---- Thermistor calculation helper ---- */
+/* Assumes 10k thermistor (B57861s0103H040) with Beta = 3988K and 10k voltage
+ * divider. */
+static float calc_temperature(uint32_t raw_adc) {
+  if (raw_adc == 0 || raw_adc >= 4095)
+    return -99.9f; /* Error / open / short */
+
+  /* Assuming Thermistor is to GND, pull-up is 10k */
+  float r_therm = 10000.0f * ((float)raw_adc / (4095.0f - (float)raw_adc));
+
+  /* Beta equation: 1/T = 1/T0 + (1/Beta) * ln(R/R0) */
+  float t0 = 298.15f; /* 25C */
+  float r0 = 10000.0f;
+  float beta = 3988.0f; /* Typical Beta for 10k B57861S */
+
+  float inv_t = (1.0f / t0) + (1.0f / beta) * logf(r_therm / r0);
+  float t_kelvin = 1.0f / inv_t;
+  return t_kelvin - 273.15f; /* Celsius */
 }
 
 /* USER CODE END 0 */
@@ -252,20 +274,21 @@ int main(void) {
   MX_TIM3_Init();
   MX_TIM17_Init();
   MX_USB_DEVICE_Init();
+  MX_ADC3_Init();
   /* USER CODE BEGIN 2 */
+  /* ADC1 Initialization for Shunts/VSense */
   HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED);
   HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adc_dma_buf, 5);
 
-  chan_apply_all(); /* turn on all 4 load channels at startup */
+  /* ADC3 Initialization for PB1 Thermistor */
+  __HAL_RCC_ADC34_CLK_ENABLE();
+  HAL_ADCEx_Calibration_Start(&hadc3, ADC_SINGLE_ENDED);
+  HAL_ADC_Start(&hadc3);
 
-  /* DAC value — will be written continuously in the main loop */
-  dac_value = DAC_TEST_VALUE;
-
-  /* Start fan PWM at 60% duty cycle (default) */
-  fan_duty = 60U;
-  uint32_t compare = (uint32_t)fan_duty * 1919U / 100U;
-  __HAL_TIM_SET_COMPARE(&htim17, TIM_CHANNEL_1, (uint16_t)compare);
   HAL_TIM_PWM_Start(&htim17, TIM_CHANNEL_1);
+  Fan_SetSpeed(fan_duty); /* applies initial duty cycle to timer compare */
+  /* USER CODE END 2 */
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1) {
@@ -392,6 +415,14 @@ int main(void) {
       } else if ((now - last_report_tick_ms) >= REPORT_PERIOD_MS) {
         last_report_tick_ms = now;
 
+        /* Sample PB1 Thermistor (ADC3) */
+        uint32_t adc3_val = 0;
+        if (HAL_ADC_PollForConversion(&hadc3, 10) == HAL_OK) {
+          adc3_val = HAL_ADC_GetValue(&hadc3);
+          env_temp_c = calc_temperature(adc3_val);
+        }
+        HAL_ADC_Start(&hadc3); // Restart conversion for next loop
+
         /* Check if DAC is present on the bus */
         HAL_StatusTypeDef dev_ready =
             HAL_I2C_IsDeviceReady(&hi2c1, MCP4725_ADDR, 3, 100);
@@ -405,15 +436,16 @@ int main(void) {
         uint32_t s3_mv = ADC_RAW_TO_MV(adc_dma_buf[2]);
         uint32_t s4_mv = ADC_RAW_TO_MV(adc_dma_buf[3]);
 
-        int n =
-            snprintf(report_buf, sizeof(report_buf),
-                     "S1=%lu S2=%lu S3=%lu S4=%lu DAC=%u DEV=%s WR=%s "
-                     "FAN:AUTO=0,DUTY=%u,RPM=0 ERR=0x%02lX\r\n",
-                     (unsigned long)s1_mv, (unsigned long)s2_mv,
-                     (unsigned long)s3_mv, (unsigned long)s4_mv,
-                     (unsigned)dac_value, (dev_ready == HAL_OK) ? "OK" : "NO",
-                     (dac_status == HAL_OK) ? "OK" : "FAIL", (unsigned)fan_duty,
-                     (unsigned long)hi2c1.ErrorCode);
+        int n = snprintf(
+            report_buf, sizeof(report_buf),
+            "S1=%lu S2=%lu S3=%lu S4=%lu DAC=%u DEV=%s WR=%s "
+            "FAN:AUTO=0,DUTY=%u,RPM=0 TEMP=%.1f RAW_ADC=%lu ERR=0x%02lX\r\n",
+            (unsigned long)s1_mv, (unsigned long)s2_mv, (unsigned long)s3_mv,
+            (unsigned long)s4_mv, (unsigned)dac_value,
+            (dev_ready == HAL_OK) ? "OK" : "NO",
+            (dac_status == HAL_OK) ? "OK" : "FAIL", (unsigned)fan_duty,
+            env_temp_c, (unsigned long)adc3_val,
+            (unsigned long)hi2c1.ErrorCode);
         if (n > 0)
           (void)CDC_Transmit_FS((uint8_t *)report_buf, (uint16_t)n);
       }
@@ -459,9 +491,11 @@ void SystemClock_Config(void) {
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK) {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection =
-      RCC_PERIPHCLK_USB | RCC_PERIPHCLK_I2C1 | RCC_PERIPHCLK_ADC12;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB | RCC_PERIPHCLK_I2C1 |
+                                       RCC_PERIPHCLK_ADC12 |
+                                       RCC_PERIPHCLK_ADC34;
   PeriphClkInit.Adc12ClockSelection = RCC_ADC12PLLCLK_DIV1;
+  PeriphClkInit.Adc34ClockSelection = RCC_ADC34PLLCLK_DIV1;
   PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_HSI;
   PeriphClkInit.USBClockSelection = RCC_USBCLKSOURCE_PLL_DIV1_5;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK) {
@@ -560,6 +594,67 @@ static void MX_ADC1_Init(void) {
   /* USER CODE BEGIN ADC1_Init 2 */
 
   /* USER CODE END ADC1_Init 2 */
+}
+
+/**
+ * @brief ADC3 Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_ADC3_Init(void) {
+
+  /* USER CODE BEGIN ADC3_Init 0 */
+
+  /* USER CODE END ADC3_Init 0 */
+
+  ADC_MultiModeTypeDef multimode = {0};
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC3_Init 1 */
+
+  /* USER CODE END ADC3_Init 1 */
+
+  /** Common config
+   */
+  hadc3.Instance = ADC3;
+  hadc3.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
+  hadc3.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc3.Init.ScanConvMode = ADC_SCAN_DISABLE;
+  hadc3.Init.ContinuousConvMode = DISABLE;
+  hadc3.Init.DiscontinuousConvMode = DISABLE;
+  hadc3.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc3.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc3.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc3.Init.NbrOfConversion = 1;
+  hadc3.Init.DMAContinuousRequests = DISABLE;
+  hadc3.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  hadc3.Init.LowPowerAutoWait = DISABLE;
+  hadc3.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
+  if (HAL_ADC_Init(&hadc3) != HAL_OK) {
+    Error_Handler();
+  }
+
+  /** Configure the ADC multi-mode
+   */
+  multimode.Mode = ADC_MODE_INDEPENDENT;
+  if (HAL_ADCEx_MultiModeConfigChannel(&hadc3, &multimode) != HAL_OK) {
+    Error_Handler();
+  }
+
+  /** Configure Regular Channel
+   */
+  sConfig.Channel = ADC_CHANNEL_1;
+  sConfig.Rank = ADC_REGULAR_RANK_1;
+  sConfig.SingleDiff = ADC_SINGLE_ENDED;
+  sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+  sConfig.OffsetNumber = ADC_OFFSET_NONE;
+  sConfig.Offset = 0;
+  if (HAL_ADC_ConfigChannel(&hadc3, &sConfig) != HAL_OK) {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC3_Init 2 */
+
+  /* USER CODE END ADC3_Init 2 */
 }
 
 /**
@@ -745,10 +840,10 @@ static void MX_GPIO_Init(void) {
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, OFF_Pin | LOAD_3_Pin | LOAD_1_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(LOAD_2_GPIO_Port, LOAD_2_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LOAD_2_GPIO_Port, LOAD_2_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOB, OFF_Pin | LOAD_1_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin : DEV_DET_Pin */
   GPIO_InitStruct.Pin = DEV_DET_Pin;
@@ -768,19 +863,19 @@ static void MX_GPIO_Init(void) {
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(ENC_SW_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : OFF_Pin LOAD_3_Pin LOAD_1_Pin */
-  GPIO_InitStruct.Pin = OFF_Pin | LOAD_3_Pin | LOAD_1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
   /*Configure GPIO pin : LOAD_2_Pin */
   GPIO_InitStruct.Pin = LOAD_2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LOAD_2_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : OFF_Pin LOAD_1_Pin */
+  GPIO_InitStruct.Pin = OFF_Pin | LOAD_1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI9_5_IRQn, 2, 0);
