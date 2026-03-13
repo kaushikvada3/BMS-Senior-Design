@@ -3782,8 +3782,6 @@ function onModelClick(event) {
 const packVoltageEl = document.querySelector("[data-pack-voltage]");
 const packCurrentEl = document.querySelector("[data-pack-current]");
 const packTempEl = document.querySelector("[data-pack-temp]");
-const fanSpeed1El = document.querySelector("[data-fan-speed-1]");
-const fanSpeed2El = document.querySelector("[data-fan-speed-2]");
 const sysStatEl = document.querySelector("[data-sys-stat]");
 const loadPresentEl = document.querySelector("[data-load-present]");
 const chargeFetStatusEl = document.querySelector("[data-charge-fet-status]");
@@ -4546,10 +4544,6 @@ function updateHud(data) {
     if (!entry) return;
     entry.rpm = fanSpinRpm;
   });
-  // Show actual RPM (including 0) when we have telemetry; "-- RPM" only when no data
-  const hasFanData = fan1TelemetryRpm != null || fan2TelemetryRpm != null;
-  fanSpeed1El.textContent = hasFanData ? `${Math.round(fan1Rpm).toLocaleString()} RPM` : "-- RPM";
-  fanSpeed2El.textContent = "-- RPM";
 
   // Update SYS_STAT and Load Present
   if (sysStatEl) {
