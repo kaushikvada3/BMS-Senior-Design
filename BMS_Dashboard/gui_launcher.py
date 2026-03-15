@@ -1,4 +1,4 @@
-﻿"""Standalone launcher for the BMS dashboard frontend."""
+"""Standalone launcher for the BMS dashboard frontend."""
 
 from __future__ import annotations
 
@@ -85,7 +85,7 @@ from PyQt6.QtCore import (
     pyqtSignal,
     pyqtSlot,
 )
-from PyQt6.QtGui import QAction, QColor, QIcon
+from PyQt6.QtGui import QAction, QColor, QIcon, QShortcut, QKeySequence
 from PyQt6.QtWebChannel import QWebChannel
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import (
@@ -541,6 +541,22 @@ class DashboardWindow(QMainWindow):
 
         if self.updater and auto_update_check and self.is_packaged:
             QTimer.singleShot(2500, lambda: self.check_for_updates_async(manual=False))
+
+        # Setup GUI Zoom Shortcuts
+        QShortcut(QKeySequence.StandardKey.ZoomIn, self).activated.connect(self.zoom_in)
+        QShortcut(QKeySequence("Ctrl+="), self).activated.connect(self.zoom_in)
+        QShortcut(QKeySequence.StandardKey.ZoomOut, self).activated.connect(self.zoom_out)
+        QShortcut(QKeySequence("Ctrl+-"), self).activated.connect(self.zoom_out)
+        QShortcut(QKeySequence("Ctrl+0"), self).activated.connect(self.zoom_reset)
+
+    def zoom_in(self) -> None:
+        self.view.setZoomFactor(min(self.view.zoomFactor() + 0.1, 5.0))
+
+    def zoom_out(self) -> None:
+        self.view.setZoomFactor(max(self.view.zoomFactor() - 0.1, 0.25))
+
+    def zoom_reset(self) -> None:
+        self.view.setZoomFactor(1.0)
 
     def handle_bms_data(self, data: dict):
         """Handle BMS serial data"""
