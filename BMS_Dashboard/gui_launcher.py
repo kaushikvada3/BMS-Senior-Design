@@ -546,7 +546,10 @@ class DashboardWindow(QMainWindow):
         QShortcut(QKeySequence.StandardKey.ZoomIn, self).activated.connect(self.zoom_in)
         QShortcut(QKeySequence("Ctrl+="), self).activated.connect(self.zoom_in)
         QShortcut(QKeySequence.StandardKey.ZoomOut, self).activated.connect(self.zoom_out)
-        QShortcut(QKeySequence("Ctrl+-"), self).activated.connect(self.zoom_out)
+        
+        # Explicit shortcut modifiers for Cmd/Ctrl minus mapping using the dash key
+        QShortcut(QKeySequence(Qt.Modifier.CTRL | Qt.Key.Key_Minus), self).activated.connect(self.zoom_out)
+        
         QShortcut(QKeySequence("Ctrl+0"), self).activated.connect(self.zoom_reset)
 
     def zoom_in(self) -> None:
