@@ -667,7 +667,9 @@ h1 {
   grid-column: 3;
   grid-row: 2;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-content: flex-start;
   gap: 0.6rem;
   width: 100%;
   max-width: var(--side-column-width);
@@ -676,6 +678,10 @@ h1 {
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: none;
+}
+
+.right-column > section {
+  flex: 1 1 100%;
 }
 
 .right-column::-webkit-scrollbar {
@@ -1365,32 +1371,67 @@ body.compact-layout .detail-panel.is-visible {
 @media (max-width: 900px) {
   :root {
     --ui-scale: 1;
+    --hud-padding: 0.5rem;
   }
 
   .hud {
     grid-template-columns: 1fr;
     grid-template-rows: auto auto auto;
-    padding: 1rem;
+    padding: var(--hud-padding);
     overflow-y: auto;
-    /* Allow scrolling if vertical space is tight */
+    overflow-x: hidden;
+    height: 100vh;
+    pointer-events: auto; /* Ensure whole HUD catches scroll */
+  }
+
+  /* Force background shading on small screens so text is readable over the 3D model */
+  .hud::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -1;
+    background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0.95) 100%);
   }
 
   .hud__header {
     grid-column: 1;
     margin-bottom: 0.5rem;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    padding: 0.5rem;
+    background: rgba(10, 15, 25, 0.85);
+    backdrop-filter: blur(12px);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.1);
   }
 
   .left-column {
     grid-column: 1;
     grid-row: 2;
     width: 100%;
+    overflow: visible; /* Let the parent grid scroll it */
+  }
+
+  /* Allow cell grid to overflow horizontally on small phones */
+  .cell-grid {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   }
 
   .right-column {
     grid-column: 1;
     grid-row: 3;
     width: 100%;
+    max-width: none;
     margin-top: 1rem;
+    overflow: visible;
+    flex-wrap: wrap;
+    flex-direction: row;
+  }
+  
+  .right-column > section {
+    flex: 1 1 300px;
   }
 
   .detail-panel {
@@ -1409,6 +1450,43 @@ body.compact-layout .detail-panel.is-visible {
 
   .detail-panel.is-visible {
     transform: translateY(0);
+  }
+}
+
+/* ═══════════════ Medium Height (Laptop Overflows) ═══════════════ */
+@media (max-height: 850px) and (min-width: 901px) {
+  :root {
+    --hud-padding: 0.4rem;
+  }
+  
+  .glass-panel {
+    padding: 0.4rem 0.6rem;
+    border-radius: 12px;
+  }
+  
+  /* Let Fan Cooling and Charge Mode sit side-by-side to save huge vertical space */
+  .right-column {
+    max-width: calc(var(--side-column-width) * 1.6); /* Let it breathe slightly wider to accommodate dual-columns */
+  }
+  
+  /* Select the first two sections (Fan Cooling, Charge Mode) */
+  .right-column > section:nth-child(1),
+  .right-column > section:nth-child(2) {
+    flex: 1 1 45%; 
+    min-width: 130px;
+  }
+  
+  /* Compact metrics panel on left column */
+  .metrics {
+    gap: 0.25rem;
+  }
+  
+  .metric-card__value {
+    font-size: 1.05rem;
+  }
+  
+  .metric-card__label, .eyebrow {
+    font-size: 0.65rem;
   }
 }
 
