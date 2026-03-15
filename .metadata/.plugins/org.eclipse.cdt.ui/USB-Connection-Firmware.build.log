@@ -1,10 +1,10 @@
-23:14:40 **** Incremental Build of configuration Debug for project USB-Connection-Firmware ****
+11:36:06 **** Incremental Build of configuration Debug for project USB-Connection-Firmware ****
 make -j11 all 
 arm-none-eabi-size  USB-Connection-Firmware.elf 
    text	   data	    bss	    dec	    hex	filename
-  76176	    844	  10892	  87912	  15768	USB-Connection-Firmware.elf
+  76168	    844	  10892	  87904	  15760	USB-Connection-Firmware.elf
 Finished building: default.size.stdout
  
 
-23:14:40 Build Finished. 0 errors, 0 warnings. (took 99ms)
+11:36:06 Build Finished. 0 errors, 0 warnings. (took 156ms)
 

@@ -71,8 +71,12 @@ FET_STATUS_RE = re.compile(
     r'\bfet_mode\s*:\s*(charge|discharge|off)\s+charge_fet\s*:\s*(\d+)\s+discharge_fet\s*:\s*(\d+)\s+thermal_shutdown\s*:\s*(\d+)\b',
     re.IGNORECASE,
 )
+CHARGER_STATUS_RE = re.compile(
+    r'\bcharger_ok\s*:\s*(\d+)\s+batt_full\s*:\s*(\d+)\s+charger_forced_off\s*:\s*(\d+)\s+battfull_forced_off\s*:\s*(\d+)\b',
+    re.IGNORECASE,
+)
 NON_VOLTAGE_HINT_RE = re.compile(
-    r'\b(?:ntc|status|bms|rpm|fan|eload|current|temp|fault|ctrl|sys_stat|load|bal_en|fet_mode|charge_fet|discharge_fet|thermal_shutdown|CH[1-4])\b|^OK\b',
+    r'\b(?:ntc|status|bms|rpm|fan|eload|current|temp|fault|ctrl|sys_stat|load|bal_en|fet_mode|charge_fet|discharge_fet|thermal_shutdown|charger_ok|batt_full|charger_forced_off|battfull_forced_off|CH[1-4])\b|^OK\b',
     re.IGNORECASE,
 )
 EXCLUDED_SERIAL_PORTS = {"COM3"}
@@ -367,6 +371,12 @@ class SerialWorker(QObject):
         if fet_status is not None:
             self._ensure_pending_frame()
             self._pending_frame["fet_status"] = fet_status
+            self._pending_started_at = now
+
+        charger_status = self._extract_charger_status(line)
+        if charger_status is not None:
+            self._ensure_pending_frame()
+            self._pending_frame["charger_status"] = charger_status
             self._pending_started_at = now
 
         # bal_en is the terminal line in the current firmware cycle; SYS_STAT/load/fet
@@ -1092,6 +1102,21 @@ class SerialWorker(QObject):
         except (TypeError, ValueError):
             return None
 
+    def _extract_charger_status(self, line: str) -> Optional[dict]:
+        """Extract charger/battery-full status from lines like 'charger_ok:1 batt_full:0 charger_forced_off:0 battfull_forced_off:0'."""
+        match = CHARGER_STATUS_RE.search(line)
+        if not match:
+            return None
+        try:
+            return {
+                "charger_ok": bool(int(match.group(1))),
+                "batt_full": bool(int(match.group(2))),
+                "charger_forced_off": bool(int(match.group(3))),
+                "battfull_forced_off": bool(int(match.group(4))),
+            }
+        except (TypeError, ValueError):
+            return None
+
     def _extract_indexed_series(self, line: str, regex: re.Pattern, limit: int = 10) -> List[float]:
         """Extract indexed values like C1: 3.54 ... and return ordered values by index."""
         values_by_index = {}
@@ -1311,6 +1336,10 @@ class SerialWorker(QObject):
                 result["bal_status"] = raw["bal_status"]
             if fet_status is not None:
                 result["fet_status"] = fet_status
+
+            charger_status = raw.get("charger_status")
+            if charger_status:
+                result["charger_status"] = charger_status
 
             return result
         except Exception as e:

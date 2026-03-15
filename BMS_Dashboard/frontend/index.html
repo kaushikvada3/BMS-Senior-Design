@@ -178,6 +178,18 @@
           </div>
           <p class="metric-card__hint fet-thermal-note" data-fet-thermal-note hidden>Thermal shutdown: both FETs forced
             off</p>
+          <div class="fet-status-grid" style="margin-top: 0.5rem;">
+            <div class="fet-indicator" data-fet-indicator="charger-ok">
+              <p class="metric-card__label">Charger OK</p>
+              <p class="fet-indicator__value" data-charger-ok-status>--</p>
+            </div>
+            <div class="fet-indicator" data-fet-indicator="batt-full">
+              <p class="metric-card__label">Battery Full</p>
+              <p class="fet-indicator__value" data-batt-full-status>--</p>
+            </div>
+          </div>
+          <p class="metric-card__hint fet-thermal-note" data-charger-forced-note hidden>Charger fault: FETs forced off</p>
+          <p class="metric-card__hint fet-thermal-note" data-battfull-forced-note hidden>Battery full: FETs forced off</p>
         </section>
 
         <!-- Cell Balancing Control -->

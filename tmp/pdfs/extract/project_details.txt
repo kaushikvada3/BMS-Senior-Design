@@ -1,0 +1,190 @@
+          Senior Design Project Report
+  Battery Management and Communication System
+
+
+1.      Overview
+This project implements a complete Battery Management and Communication System
+(BMS) for a 10s1p lithium-ion battery pack using Molicel P42A cells. The design provides
+safe power management, precise measurement, and full isolation between high-voltage and
+host-computer domains. The system integrates hardware, firmware, and host-software
+components to support live monitoring, thermal control, and data acquisition.
+
+
+2.      Project Purpose and Objectives
+     • Ensure safe charging, discharging, and monitoring of a 10-cell lithium-ion battery
+       pack.
+     • Provide full electrical isolation for data acquisition and communication with a host
+       computer.
+     • Enable real-time measurement and visualization of voltage, current, and tempera-
+       ture.
+     • Implement fan control and protection mechanisms to maintain system reliability.
+     • Integrate flexible testing capability through both real and emulated battery pack
+       modes.
+
+
+3.      System Architecture
+The full system is divided into two major domains:
+  1. Battery and Power Domain (High Voltage) – includes battery pack, thermis-
+     tors, fan, and system buses.
+  2. Isolated Communication Domain – includes STM32 microcontroller, isolated
+     ADC, RTC, USB communication, and power conditioning.
+
+3.1     Battery Pack Subsystem
+     • Configuration: 10s1p lithium-ion pack using Molicel P42A cells.
+     • Nominal Voltage: 36 V.
+     • Nominal Capacity: 4.2 Ah (151.2 Wh total energy).
+     • Temperature Sensing: NTC thermistors placed throughout the pack.
+     • Fan Unit: DC cooling fan powered from pack rail for thermal regulation.
+
+                                             1
+3.2     Signal Processing and Conditioning
+     • NTC thermistor network provides analog temperature sensing via resistor dividers.
+
+     • Comparator circuits monitor critical voltage and temperature thresholds.
+
+     • Low-pass filters (LPF) smooth sensor data prior to ADC conversion.
+
+     • Comparator outputs drive a discrete N-channel MOSFET gate driver for load con-
+       trol.
+
+3.3     System Bus
+Two main buses interface between the high-voltage and isolated zones:
+
+     • System Bus + carries sensor and measurement signals.
+
+     • System Bus – provides return reference for analog signals.
+
+
+4.      Isolated Zone for Laptop/PC Communication
+The isolated subsystem provides complete galvanic separation between the measurement
+circuitry and the host computer.
+
+4.1     Power and Isolation Components
+     • Isolated DC/DC Converter: Generates isolated 5 V and 3.3 V rails (ISO 5V
+       and ISO 3V3).
+
+     • PTC Fuse: Provides over-current protection for the isolated power supply.
+
+4.2     Data Acquisition
+     • Isolated ADC (8-channel): Samples voltage and temperature data via SPI in-
+       terface.
+
+     • Low-Pass Filters: Clean noisy analog inputs before ADC sampling.
+
+4.3     Microcontroller Unit (MCU)
+     • Device: STM32 series microcontroller.
+
+     • Interfaces: SPI (for ADC), I2 C (for RTC), and UART (for PC communication).
+
+     • Isolation: All digital and analog signals pass through isolation barriers.
+
+     • Tasks:
+
+         – Collect and timestamp ADC data.
+         – Execute fan control algorithms.
+         – Forward processed data via USB to host PC.
+
+                                             2
+4.4     Real-Time Clock (RTC)
+     • Provides accurate timekeeping for data logging.
+
+     • Interfaces to MCU via I2 C.
+
+4.5     USB Communication Interface
+     • Interface: USB-C to Laptop/PC.
+
+     • Data Path: STM32 MCU → USB Interface → PC Application.
+
+     • Enables live monitoring and control through a graphical desktop interface.
+
+
+5.      Electrical Protection and Safety
+     • PTC fuse protects isolated 5V line.
+
+     • Over-voltage and under-voltage comparators shut down MOSFETs in unsafe con-
+       ditions.
+
+     • Isolation barriers prevent any high-voltage transients from reaching the PC.
+
+
+6.      Software and PC Interface
+The system includes two software layers:
+
+  1. Embedded Firmware:
+
+          • Handles sensor sampling, signal processing, and USB communication.
+          • Implements fan control logic and safety interrupts.
+
+  2. Host Computer GUI:
+
+          • Displays real-time voltage, current, and temperature data.
+          • Allows user configuration of charging, discharging, and data logging.
+          • Communicates via USB serial link with the STM32 MCU.
+
+
+7.      Key Components Summary
+8.      System Connectivity Summary
+     • Battery Pack → Comparator → LPF → Isolated ADC.
+
+     • Isolated ADC → STM32 MCU → USB-C → Host PC.
+
+     • Fan ↔ MCU (Analog control and digital enable line).
+
+
+
+                                             3
+         Component                Description / Function
+         Molicel P42A   21700 cell, 4.2 Ah, 3.6 V nominal per cell.
+         STM32 MCU      Core microcontroller handling ADC sampling,
+                        data logging, and fan control.
+         Isolated ADC   8-channel ADC sampling cell voltages and ther-
+                        mistor readings.
+         Isolated DC/DC Provides galvanic isolation and power regulation
+         Converter      for measurement circuit.
+         PTC Fuse       Protects isolated 5V rail against over-current.
+         Comparators    Monitors battery parameters and controls MOS-
+                        FET gate-driver signals.
+         LPF Networks   Filters sensor outputs for clean ADC conversion.
+         NTC Thermis- Measure pack temperature for thermal manage-
+         tors           ment.
+         Fan            Provides active cooling controlled by MCU logic.
+
+
+9.      Symbol Legend
+     • → Single signal path.
+
+     • = N ⇒ Harness containing N signal wires.
+
+     • ↔ Bidirectional signal connection.
+
+     • ≈≈ General signal path (no fixed direction).
+
+
+10.       Development Status and Next Steps
+     • Schematic design complete.
+
+     • Layout design initiated.
+
+     • Firmware in early development.
+
+     • CAD and block diagram revisions underway.
+
+     • Upcoming tasks include integration testing, Jetson AI model interfacing, and full
+       system calibration.
+
+
+11.       Conclusion
+This system delivers a modular, isolated, and safe approach to lithium-ion battery mon-
+itoring and communication. By separating the high-voltage sensing and host commu-
+nication zones, it ensures protection and scalability for advanced applications such as
+AI-assisted battery health estimation on the Jetson platform.
+
+
+                                             4
+End of Report
+
+
+
+
+      5
+

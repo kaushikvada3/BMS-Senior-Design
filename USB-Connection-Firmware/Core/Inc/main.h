@@ -65,6 +65,10 @@ void Error_Handler(void);
 #define FAN_TACH_GPIO_Port GPIOC
 #define LED_HEARTBEAT_Pin GPIO_PIN_11
 #define LED_HEARTBEAT_GPIO_Port GPIOC
+#define C_OK_Pin GPIO_PIN_10
+#define C_OK_GPIO_Port GPIOB
+#define BATT_FULL_Pin GPIO_PIN_11
+#define BATT_FULL_GPIO_Port GPIOB
 #define FAN_EN_Pin GPIO_PIN_9
 #define FAN_EN_GPIO_Port GPIOB
 

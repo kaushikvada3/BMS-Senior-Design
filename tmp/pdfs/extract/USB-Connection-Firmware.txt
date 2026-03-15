@@ -1,0 +1,1004 @@
+             USB-Connection-Firmware Project
+                        Configuration Report
+
+
+
+
+11/02/2026
+                                           USB-Connection-Firmware Project
+                                                      Configuration Report
+
+
+1. Description
+1.1. Project
+
+
+         Project Name         USB-Connection-Firmware
+         Board Name           custom
+         Generated with:      STM32CubeMX 6.16.1
+         Date                 02/11/2026
+
+
+1.2. MCU
+
+
+         MCU Series           STM32F3
+         MCU Line             STM32F303
+         MCU name             STM32F303RCTx
+         MCU Package          LQFP64
+         MCU Pin number       64
+
+
+1.3. Core(s) information
+
+
+         Core(s)              Arm Cortex-M4
+
+
+
+
+                           Page 1
+                                   USB-Connection-Firmware Project
+                                              Configuration Report
+
+
+2. Pinout Configuration
+
+
+
+
+                          Page 2
+                                                            USB-Connection-Firmware Project
+                                                                       Configuration Report
+
+
+3. Pins Configuration
+
+     Pin Number            Pin Name          Pin Type     Alternate          Label
+      LQFP64             (function after                 Function(s)
+                             reset)
+           1                  VBAT             Power
+           5                PF0-OSC_IN          I/O      RCC_OSC_IN
+           6               PF1-OSC_OUT          I/O      RCC_OSC_OUT
+           7                  NRST             Reset
+           10                 PC2 *             I/O       GPIO_Output      USB_Pul_ Up
+           12               VSSA/VREF-         Power
+           13              VDDA/VREF+          Power
+           14                  PA0              I/O        ADC1_IN1
+           15                  PA1              I/O        ADC1_IN2
+           16                  PA2              I/O        ADC1_IN3
+           17                  PA3              I/O        ADC1_IN4
+           18                  PF4              I/O        ADC1_IN5
+           19                  VDD             Power
+           20                  PA4              I/O        ADC2_IN1
+           21                  PA5              I/O        ADC2_IN2
+           22                  PA6              I/O        ADC2_IN3
+           23                  PA7              I/O        ADC2_IN4
+           24                  PC4              I/O        ADC2_IN5
+           31                  VSS             Power
+           32                  VDD             Power
+           41                  PA8              I/O        RCC_MCO
+           44                 PA11              I/O        USB_DM
+           45                 PA12              I/O        USB_DP
+           46                 PA13              I/O     SYS_JTMS-SWDIO
+           47                  VSS             Power
+           48                  VDD             Power
+           49                 PA14              I/O     SYS_JTCK-SWCLK
+           50                 PA15              I/O        I2C1_SCL
+           52                 PC11 *            I/O       GPIO_Output     LED_HEARTBEAT
+           59                  PB7              I/O        I2C1_SDA
+           60                 BOOT0            Boot
+           63                  VSS             Power
+           64                  VDD             Power
+
+
+
+
+* The pin is affected with an I/O function
+
+
+
+                                             Page 3
+                                   USB-Connection-Firmware Project
+                                              Configuration Report
+
+
+4. Clock Tree Configuration
+
+
+
+
+                          Page 4
+                                               USB-Connection-Firmware Project
+                                                          Configuration Report
+
+
+1. Power Consumption Calculator report
+1.1. Microcontroller Selection
+
+
+         Series                     STM32F3
+         Line                       STM32F303
+         MCU                        STM32F303RCTx
+         Datasheet                  DS9118_Rev13
+
+
+1.2. Parameter Selection
+
+
+         Temperature                25
+         Vdd                        3.6
+
+
+1.3. Battery Selection
+
+
+         Battery                    Li-SOCL2(A3400)
+         Capacity                   3400.0 mAh
+         Self Discharge             0.08 %/month
+         Nominal Voltage            3.6 V
+         Max Cont Current           100.0 mA
+         Max Pulse Current          200.0 mA
+         Cells in series            1
+         Cells in parallel          1
+
+
+
+
+                                 Page 5
+                                                              USB-Connection-Firmware Project
+                                                                         Configuration Report
+
+
+1.4. Sequence
+
+         Step                         Step1                   Step2
+         Mode                         RUN                     STOP
+         Vdd                          3.6                     3.6
+         Voltage Source               Battery                 Battery
+         Range                        No Scale                No Scale
+         Fetch Type                   FLASH                   n/a
+         CPU Frequency                72 MHz                  0 Hz
+         Clock Configuration          HSE PLL                 Regulator_LP
+         Clock Source Frequency       8 MHz                   0 Hz
+         Peripherals
+         Additional Cons.             0 mA                    0 mA
+         Average Current              28.24 mA                10.85 µA
+         Duration                     0.1 ms                  0.9 ms
+         DMIPS                        63.0                    0.0
+         Ta Max                       100.43                  105
+         Category                     In DS Table             In DS Table
+
+
+1.5. Results
+
+
+         Sequence Time         1 ms                 Average Current 2.83 mA
+         Battery Life          1 month, 19 days, Average DMIPS          63.0 DMIPS
+                               12 hours
+
+
+1.6. Chart
+
+
+
+
+                                                 Page 6
+         USB-Connection-Firmware Project
+                    Configuration Report
+
+
+
+
+Page 7
+                                                                                          USB-Connection-Firmware Project
+                                                                                                     Configuration Report
+
+
+2. Software Project
+2.1. Project Settings
+
+
+                         Name                                                                    Value
+                      Project Name                                                     USB-Connection-Firmware
+                      Project Folder                            C:\Users\EndUser\STM32CubeIDE\workspace_2.0.0\USB-Connection-Firmware
+                     Toolchain / IDE                                                         STM32CubeIDE
+          Firmware Package Name and Version                                           STM32Cube FW_F3 V1.11.5
+                  Application Structure                                                         Advanced
+                  Generate Under Root                                                               No
+               Do not generate the main()                                                           No
+                   Minimum Heap Size                                                              0x800
+                   Minimum Stack Size                                                             0x400
+
+
+
+2.2. Code Generation Settings
+
+
+                         Name                                                                    Value
+ STM32Cube MCU packages and embedded software                                      Copy only the necessary library files
+Generate peripheral initialization as a pair of '.c/.h' files                                       No
+ Backup previously generated files when re-generating                                               No
+          Keep User Code when re-generating                                                        Yes
+Delete previously generated files when not re-generated                                            Yes
+   Set all free pins as analog (to optimize the power                                               No
+                      consumption)
+                    Enable Full Assert                                                              No
+
+
+
+2.3. Advanced Settings - Generated Function Calls
+
+
+   Rank                              Function Name                                         Peripheral Instance Name
+      1                                SystemClock_Config                                                    RCC
+      2                                   MX_GPIO_Init                                                      GPIO
+      3                              MX_USB_DEVICE_Init                                                  USB_DEVICE
+      4                                   MX_I2C1_Init                                                       I2C1
+      5                                   MX_ADC1_Init                                                      ADC1
+      6                                   MX_ADC2_Init                                                      ADC2
+
+
+
+
+                                                                     Page 8
+                                                                  USB-Connection-Firmware Project
+                                                                             Configuration Report
+
+
+3. Peripherals and Middlewares Configuration
+3.1. ADC1
+IN1: IN1 Single-ended
+IN2: IN2 Single-ended
+IN3: IN3 Single-ended
+IN4: IN4 Single-ended
+IN5: IN5 Single-ended
+3.1.1. Parameter Settings:
+
+ADCs_Common_Settings:
+Mode                                 Independent mode
+
+ADC_Settings:
+Clock Prescaler                      ADC Asynchronous clock mode
+Resolution                           ADC 12-bit resolution
+Data Alignment                       Right alignment
+Scan Conversion Mode                 Disabled
+Continuous Conversion Mode           Disabled
+Discontinuous Conversion Mode        Disabled
+DMA Continuous Requests              Disabled
+End Of Conversion Selection          End of single conversion
+Overrun behaviour                    Overrun data overwritten
+Low Power Auto Wait                  Disabled
+
+ADC_Regular_ConversionMode:
+Enable Regular Conversions           Enable
+Number Of Conversion                 1
+External Trigger Conversion Source   Regular Conversion launched by software
+External Trigger Conversion Edge     None
+SequencerNbRanks                     1
+Rank                                 1
+Channel                              Channel 1
+Sampling Time                        1.5 Cycles
+Offset Number                        No offset
+Offset                               0
+
+ADC_Injected_ConversionMode:
+Enable Injected Conversions          Enable
+Number Of Conversions                0
+
+Analog Watchdog 1:
+Enable Analog WatchDog1 Mode         false
+
+Analog Watchdog 2:
+
+
+
+
+                                              Page 9
+                                                                  USB-Connection-Firmware Project
+                                                                             Configuration Report
+
+Enable Analog WatchDog2 Mode         false
+
+Analog Watchdog 3:
+Enable Analog WatchDog3 Mode         false
+
+
+
+
+3.2. ADC2
+IN1: IN1 Single-ended
+IN2: IN2 Single-ended
+IN3: IN3 Single-ended
+IN4: IN4 Single-ended
+IN5: IN5 Single-ended
+3.2.1. Parameter Settings:
+
+ADCs_Common_Settings:
+Mode                                 Independent mode
+
+ADC_Settings:
+Clock Prescaler                      ADC Asynchronous clock mode
+Resolution                           ADC 12-bit resolution
+Data Alignment                       Right alignment
+Scan Conversion Mode                 Disabled
+Continuous Conversion Mode           Disabled
+Discontinuous Conversion Mode        Disabled
+DMA Continuous Requests              Disabled
+End Of Conversion Selection          End of single conversion
+Overrun behaviour                    Overrun data overwritten
+Low Power Auto Wait                  Disabled
+
+ADC_Regular_ConversionMode:
+Enable Regular Conversions           Enable
+Number Of Conversion                 1
+External Trigger Conversion Source   Regular Conversion launched by software
+External Trigger Conversion Edge     None
+SequencerNbRanks                     1
+Rank                                 1
+Channel                              Channel 1
+Sampling Time                        1.5 Cycles
+Offset Number                        No offset
+Offset                               0
+
+ADC_Injected_ConversionMode:
+Enable Injected Conversions          Enable
+Number Of Conversions                0
+
+
+
+
+                                              Page 10
+                                                        USB-Connection-Firmware Project
+                                                                   Configuration Report
+
+Analog Watchdog 1:
+Enable Analog WatchDog1 Mode       false
+
+Analog Watchdog 2:
+Enable Analog WatchDog2 Mode       false
+
+Analog Watchdog 3:
+Enable Analog WatchDog3 Mode       false
+
+
+
+
+3.3. I2C1
+I2C: I2C
+3.3.1. Parameter Settings:
+
+Timing configuration:
+I2C Speed Mode                     Standard Mode
+I2C Speed Frequency (KHz)          100
+Rise Time (ns)                     100
+Fall Time (ns)                     100
+Coefficient of Digital Filter      0
+Analog Filter                      Enabled
+Timing                             0x00201D2B *
+Slave Features:
+Clock No Stretch Mode              Disabled
+General Call Address Detection     Disabled
+Primary Address Length selection   7-bit
+Dual Address Acknowledged          Disabled
+Primary slave address              0
+
+
+
+
+3.4. RCC
+High Speed Clock (HSE): Crystal/Ceramic Resonator
+mode: Master Clock Output
+3.4.1. Parameter Settings:
+
+System Parameters:
+VDD voltage (V)                    3.3
+Prefetch Buffer                    Enabled
+Flash Latency(WS)                  1 WS (2 CPU cycle)
+
+RCC Parameters:
+HSI Calibration Value              16
+
+
+
+
+                                           Page 11
+                                                                         USB-Connection-Firmware Project
+                                                                                    Configuration Report
+
+HSE Startup Timout Value (ms)                   100
+LSE Startup Timout Value (ms)                   5000
+
+
+
+
+3.5. SYS
+Debug: Serial Wire
+Timebase Source: SysTick
+
+
+3.6. USB
+mode: Device (FS)
+3.6.1. Parameter Settings:
+
+Basic Parameters:
+Speed                                           Full Speed 12MBit/s
+Physical interface                              Internal Phy
+
+Power Parameters:
+Low Power                                       Disabled
+Battery Charging                                Disabled
+
+
+
+
+3.7. USB_DEVICE
+Class For FS IP: Communication Device Class (Virtual Port Com)
+3.7.1. Parameter Settings:
+
+Basic Parameters:
+USBD_MAX_NUM_INTERFACES (Maximum number of supported interfaces)               1
+USBD_MAX_NUM_CONFIGURATION (Maximum number of supported configuration)         1
+USBD_MAX_STR_DESC_SIZ (Maximum size for the string descriptors)                512
+USBD_SELF_POWERED (Enabled self power)                                         Enabled
+USBD_DEBUG_LEVEL (USBD Debug Level)                                            0: No debug message
+
+Class Parameters:
+USB CDC Rx Buffer Size                                                         1024
+USB CDC Tx Buffer Size                                                         1024
+
+
+
+3.7.2. Device Descriptor:
+
+Device Descriptor:
+VID (Vendor IDentifier)                                                        1155
+
+
+
+
+                                                       Page 12
+                                                            USB-Connection-Firmware Project
+                                                                       Configuration Report
+
+LANGID_STRING (Language Identifier)                               English(United States)
+MANUFACTURER_STRING (Manufacturer Identifier)                     STMicroelectronics
+
+Device Descriptor FS:
+PID (Product IDentifier)                                          22336
+PRODUCT_STRING (Product Identifier)                               STM32 Virtual ComPort
+CONFIGURATION_STRING (Configuration Identifier)                   CDC Config
+INTERFACE_STRING (Interface Identifier)                           CDC Interface
+
+
+
+
+* User modified value
+
+
+
+
+                                                  Page 13
+                                                                            USB-Connection-Firmware Project
+                                                                                       Configuration Report
+
+
+  4. System Configuration
+  4.1. GPIO configuration
+
+
+IP       Pin       Signal            GPIO mode                  GPIO pull/up pull             Max     User Label
+                                                                    down                     Speed
+ADC1      PA0      ADC1_IN1            Analog mode             No pull-up and no pull-down    n/a
+          PA1      ADC1_IN2            Analog mode             No pull-up and no pull-down    n/a
+          PA2      ADC1_IN3            Analog mode             No pull-up and no pull-down    n/a
+          PA3      ADC1_IN4            Analog mode             No pull-up and no pull-down    n/a
+          PF4      ADC1_IN5            Analog mode             No pull-up and no pull-down    n/a
+ADC2      PA4      ADC2_IN1            Analog mode             No pull-up and no pull-down    n/a
+          PA5      ADC2_IN2            Analog mode             No pull-up and no pull-down    n/a
+          PA6      ADC2_IN3            Analog mode             No pull-up and no pull-down    n/a
+          PA7      ADC2_IN4            Analog mode             No pull-up and no pull-down    n/a
+          PC4      ADC2_IN5            Analog mode             No pull-up and no pull-down    n/a
+I2C1     PA15      I2C1_SCL      Alternate Function Open       No pull-up and no pull-down   High *
+                                           Drain
+          PB7      I2C1_SDA      Alternate Function Open       No pull-up and no pull-down   High *
+                                           Drain
+RCC    PF0-OSC_IN RCC_OSC_IN                n/a                           n/a                 n/a
+         PF1-  RCC_OSC_OUT                  n/a                           n/a                 n/a
+       OSC_OUT
+          PA8     RCC_MCO       Alternate Function Push Pull   No pull-up and no pull-down    Low
+SYS      PA13     SYS_JTMS-                 n/a                           n/a                 n/a
+                    SWDIO
+         PA14     SYS_JTCK-                 n/a                           n/a                 n/a
+                   SWCLK
+USB      PA11      USB_DM       Alternate Function Push Pull   No pull-up and no pull-down   High *
+         PA12      USB_DP       Alternate Function Push Pull   No pull-up and no pull-down   High *
+GPIO      PC2     GPIO_Output        Output Push Pull          No pull-up and no pull-down    Low      USB_Pul_ Up
+         PC11     GPIO_Output        Output Push Pull          No pull-up and no pull-down    Low     LED_HEARTBEAT
+
+
+
+  4.2. DMA configuration
+  nothing configured in DMA service
+
+
+
+
+                                                        Page 14
+                                                                            USB-Connection-Firmware Project
+                                                                                       Configuration Report
+
+
+4.3. NVIC configuration
+4.3.1. NVIC
+
+
+            Interrupt Table                        Enable         Preenmption Priority     SubPriority
+           Non maskable interrupt                    true                  0                    0
+              Hard fault interrupt                   true                  0                    0
+          Memory management fault                    true                  0                    0
+     Pre-fetch fault, memory access fault            true                  0                    0
+     Undefined instruction or illegal state          true                  0                    0
+   System service call via SWI instruction           true                  0                    0
+                Debug monitor                        true                  0                    0
+    Pendable request for system service              true                  0                    0
+               System tick timer                     true                  15                   0
+   USB high priority or CAN_TX interrupts            true                  0                    0
+   USB low priority or CAN_RX0 interrupts            true                  0                    0
+      PVD interrupt through EXTI line16                                         unused
+             Flash global interrupt                                             unused
+             RCC global interrupt                                               unused
+         ADC1 and ADC2 interrupts                                               unused
+  I2C1 event global interrupt / I2C1 wake-up                                    unused
+        interrupt through EXTI line 23
+              I2C1 error interrupt                                              unused
+      USB high priority interrupt remap                                         unused
+       USB low priority interrupt remap                                         unused
+          Floating point unit interrupt                                         unused
+
+4.3.2. NVIC Code generation
+
+
+   Enabled interrupt Table                       Select for init        Generate IRQ     Call HAL handler
+                                               sequence ordering          handler
+         Non maskable interrupt                       false                     true            false
+            Hard fault interrupt                      false                     true            false
+       Memory management fault                        false                     true            false
+  Pre-fetch fault, memory access fault                false                     true            false
+   Undefined instruction or illegal state             false                     true            false
+ System service call via SWI instruction              false                     true            false
+              Debug monitor                           false                     true            false
+  Pendable request for system service                 false                     true            false
+            System tick timer                         false                     true            true
+ USB high priority or CAN_TX interrupts               false                     true            true
+ USB low priority or CAN_RX0 interrupts               false                     true            true
+
+
+
+
+                                                              Page 15
+                                  USB-Connection-Firmware Project
+                                             Configuration Report
+
+
+
+
+* User modified value
+
+
+
+
+                        Page 16
+                               USB-Connection-Firmware Project
+                                          Configuration Report
+
+
+5. System Views
+5.1. Category view
+5.1.1. Current
+
+
+
+
+                     Page 17
+                                                           USB-Connection-Firmware Project
+                                                                      Configuration Report
+
+
+6. Docs & Resources
+
+Type                Link
+BSDL files          https://www.st.com/resource/en/bsdl_model/stm32f3_bsdl.zip
+System View         https://www.st.com/resource/en/svd/stm32f3-svd.zip
+Description
+Presentations       https://www.st.com/resource/en/product_presentation/stm32-
+                    stm8_embedded_software_solutions.pdf
+Presentations       https://www.st.com/resource/en/product_presentation/stm32_eval-
+                    tools_portfolio.pdf
+Presentations       https://www.st.com/resource/en/product_presentation/stm32_stm8_functi
+                    onal-safety-packages.pdf
+Presentations       https://www.st.com/resource/en/product_presentation/stm32-
+                    stm8_software_development_tools.pdf
+Presentations       https://www.st.com/resource/en/product_presentation/microcontrollers-
+                    stm32-family-overview.pdf
+Brochures           https://www.st.com/resource/en/brochure/products-and-solutions-for-plcs-
+                    and-smart-i-os.pdf
+Brochures           https://www.st.com/resource/en/brochure/expansion-boards-for-intelligent-
+                    power-switches.pdf
+Flyers              https://www.st.com/resource/en/flyer/flstm32nucleo.pdf
+Flyers              https://www.st.com/resource/en/flyer/flpowerstbd.pdf
+Flyers              https://www.st.com/resource/en/flyer/fldpstpfc11120.pdf
+Product             https://www.st.com/resource/en/certification_document/stm32_authenticat
+Certifications      ion_can.pdf
+Security Bulletin   https://www.st.com/resource/en/technical_note/tn1489-security-bulletin-
+                    tn1489stpsirt-physical-attacks-on-stm32-and-stm32cube-firmware-
+                    stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an1709-emc-design-
+                  guide-for-stm8-stm32-and-legacy-mcus-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an2945-stm8s-and-
+                  stm32-mcus-a-consistent-832bit-product-line-for-painless-migration-
+
+
+
+
+                                           Page 18
+                                                          USB-Connection-Firmware Project
+                                                                     Configuration Report
+
+
+                  stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an3070-managing-the-
+                  driver-enable-signal-for-rs485-and-iolink-communications-with-the-
+                  stm32s-usart-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an3126-audio-and-
+                  waveform-generation-using-the-dac-in-stm32-products-
+                  stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an3155-usart-protocol-
+                  used-in-the-stm32-bootloader-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an3156-usb-dfu-
+                  protocol-used-in-the-stm32-bootloader-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an3371-using-the-
+                  hardware-realtime-clock-rtc-in-stm32-f0-f2-f3-f4-and-l1-series-of-mcus-
+                  stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4045-stm32f3-series-
+                  inapplication-programming-iap-using-the-usart-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4076-two-or-three-
+                  shunt-resistor-based-current-sensing-circuit-design-in-3phase-inverters-
+                  stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4099-implementation-
+                  of-transmitters-and-receivers-for-infrared-remote-control-protocols-with-
+                  mcus-of-the-stm32f0-and-stm32f3-series-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4195-stm32f30x-adc-
+                  modes-and-application-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4206-getting-started-
+                  with-stm32f3-series-hardware-development-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4221-i2c-protocol-
+                  used-in-the-stm32-bootloader-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4228-migrating-from-
+                  stm32f1-series-to-stm32f3-series-microcontrollers-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4232-getting-started-
+                  with-analog-comparators-for-stm32f3-series-and-stm32g4-series-devices-
+                  stmicroelectronics.pdf
+
+
+
+
+                                           Page 19
+                                                         USB-Connection-Firmware Project
+                                                                    Configuration Report
+
+
+Application Notes https://www.st.com/resource/en/application_note/an4296-use-
+                  stm32f3stm32g4-ccm-sram-with-iar-embedded-workbench-keil-mdkarm-
+                  stmicroelectronics-stm32cubeide-and-other-gnubased-toolchains-
+                  stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4538-power-
+                  consumption-optimization-with-stm32f3xx-microcontrollers-
+                  stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4651-stm32f3-series-
+                  peripheral-interconnect-matrix-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4655-virtually-
+                  increasing-the-number-of-serial-communication-peripherals-in-stm32-
+                  applications-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4734-stm32cube-
+                  firmware-examples-for-stm32f3-series-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4750-handling-of-soft-
+                  errors-in-stm32-applications-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4776-generalpurpose-
+                  timer-cookbook-for-stm32-microcontrollers-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4803-highspeed-si-
+                  simulations-using-ibis-and-boardlevel-simulations-using-hyperlynx-si-on-
+                  stm32-mcus-and-mpus-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4807-migrating-
+                  between-stm32f303-and-stm32f302-line-products-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4832-migrating-from-
+                  stm32f303-line-to-stm32l4-series-and-stm32l4-series-microcontrollers-
+                  stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4989-stm32-
+                  microcontroller-debug-toolbox-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an5027-interfacing-pdm-
+                  digital-microphones-using-stm32-mcus-and-mpus-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an5310-guideline-for-
+                  using-analog-features-of-stm32g4-series-versus-stm32f3-series-devices-
+                  stmicroelectronics.pdf
+
+
+
+
+                                         Page 20
+                                                        USB-Connection-Firmware Project
+                                                                   Configuration Report
+
+
+Application Notes https://www.st.com/resource/en/application_note/an5094-migrating-
+                  between-stm32f334303-lines-and-stm32g431xxg474xxg491xx-
+                  microcontrollers-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4899-stm32-
+                  microcontroller-gpio-hardware-settings-and-lowpower-consumption-
+                  stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an5612-esd-protection-
+                  of-stm32-mcus-and-mpus-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4991-how-to-wake-
+                  up-an-stm32-microcontroller-from-lowpower-mode-with-the-usart-or-the-
+                  lpuart-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4838-introduction-to-
+                  memory-protection-unit-management-on-stm32-mcus-
+                  stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4879-introduction-to-
+                  usb-hardware-and-pcb-guidelines-using-stm32-mcus-
+                  stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an5225-introduction-to-
+                  usb-typec-power-delivery-for-stm32-mcus-and-mpus-
+                  stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an5537-how-to-use-adc-
+                  oversampling-techniques-to-improve-signaltonoise-ratio-on-stm32-mcus-
+                  stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an5036-guidelines-for-
+                  thermal-management-on-stm32-applications-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an5978-introduction-to-
+                  mb1971-llc-hat-12-v-to-75-v1-a-for-f334-g474-nucleo-board-
+                  stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an2548-introduction-to-
+                  dma-controller-for-stm32-mcus-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an3236-how-to-
+                  increase-the-number-of-touchkeys-for-touch-sensing-applications-on-
+                  stm32-mcus-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an3960-guidelines-for-
+
+
+
+                                         Page 21
+                                                        USB-Connection-Firmware Project
+                                                                   Configuration Report
+
+
+                  esd-for-touch-sensing-applications-on-stm32-mcus-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4013-introduction-to-
+                  timers-for-stm32-mcus-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4277-how-to-use-
+                  pwm-shutdown-for-motor-control-and-digital-power-conversion-on-stm32-
+                  mcus-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4299-how-to-improve-
+                  conducted-noise-robustness-for-touch-sensing-applications-on-stm32-
+                  mcus-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4310-how-to-choose-
+                  the-sampling-capacitor-for-touch-sensing-applications-on-stm32-mcus-
+                  stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4312-how-to-design-
+                  surface-sensors-for-touch-sensing-applications-on-stm32-mcus-
+                  stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4316-how-to-tune-
+                  touch-sensing-applications-on-stm32-mcus-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4759-introduction-to-
+                  using-the-hardware-realtime-clock-rtc-and-the-tamper-management-unit-
+                  tamp-with-stm32-mcus-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4908-getting-started-
+                  with-usart-automatic-baud-rater-detection-for-stm32-mcus-
+                  stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an5156-introduction-to-
+                  security-for-stm32-mcus-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an5543-guidelines-for-
+                  enhanced-spi-communication-on-stm32-mcus-and-mpus-
+                  stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/cd00211314-how-to-
+                  optimize-the-adc-accuracy-in-the-stm32-mcus-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an2639-soldering-
+                  recommendations-and-package-information-for-leadfree-ecopack2-mcus-
+                  and-mpus-stmicroelectronics.pdf
+
+
+
+
+                                         Page 22
+                                                          USB-Connection-Firmware Project
+                                                                     Configuration Report
+
+
+Application Notes https://www.st.com/resource/en/application_note/an4566-how-to-extend-
+                  the-dac-performance-on-stm32-mcus-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an5105-getting-started-
+                  with-touch-sensing-control-on-stm32-mcus-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an5647-the-goertzel-
+                  algorithm-to-compute-individual-terms-of-the-discrete-fourier-transform-
+                  dft-in-stm32-products-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an2606-introduction-to-
+                  system-memory-boot-mode-on-stm32-mcus-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an2656-stm32f10xxx-
+for related Tools lcd-glass-driver-firmware-stmicroelectronics.pdf
+& Software
+Application Notes https://www.st.com/resource/en/application_note/an3078-stm32-
+for related Tools inapplication-programming-over-the-ic-bus-stmicroelectronics.pdf
+& Software
+Application Notes https://www.st.com/resource/en/application_note/an3116-stm32s-adc-
+for related Tools modes-and-their-applications-stmicroelectronics.pdf
+& Software
+Application Notes https://www.st.com/resource/en/application_note/an3174-implementing-
+for related Tools receivers-for-infrared-remote-control-protocols-using-stm32f10xxx-
+& Software        microcontrollers-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an3307-guidelines-for-
+for related Tools obtaining-iec-60335-class-b-certification-for-any-stm32-application-
+& Software        stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4044-floating-point-
+for related Tools unit-demonstration-on-stm32-microcontrollers-stmicroelectronics.pdf
+& Software
+Application Notes https://www.st.com/resource/en/application_note/an4045-stm32f3-series-
+for related Tools inapplication-programming-iap-using-the-usart-stmicroelectronics.pdf
+& Software
+Application Notes https://www.st.com/resource/en/application_note/an4056-eeprom-
+for related Tools emulation-in-stm32f30xstm32f31xstm32f37xstm32f38x-microcontrollers-
+& Software        stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4157-
+
+
+
+                                          Page 23
+                                                          USB-Connection-Firmware Project
+                                                                     Configuration Report
+
+
+for related Tools   stm32f3discovery-peripheral-firmware-examples-stmicroelectronics.pdf
+& Software
+Application Notes https://www.st.com/resource/en/application_note/an4235-i2c-timing-
+for related Tools configuration-tool-for-stm32f3xxxx-and-stm32f0xxxx-microcontrollers-
+& Software        stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4323-getting-started-
+for related Tools with-stemwin-library-stmicroelectronics.pdf
+& Software
+Application Notes https://www.st.com/resource/en/application_note/an4435-guidelines-for-
+for related Tools obtaining-ulcsaiec-607301603351-class-b-certification-in-any-stm32-
+& Software        application-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4449-buckboost-
+for related Tools converter-using-the-stm32f334-discovery-kit-stmicroelectronics.pdf
+& Software
+Application Notes https://www.st.com/resource/en/application_note/an4499-stm32--
+for related Tools nrf51822-bluetooth-low-energy-system-solution-stmicroelectronics.pdf
+& Software
+Application Notes https://www.st.com/resource/en/application_note/an4507-pwm-resolution-
+for related Tools enhancement-through-a-dithering-technique-for-stm32-
+& Software        advancedconfiguration-generalpurpose-and-lite-timers-
+                  stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4657-stm32-
+for related Tools inapplication-programming-iap-using-the-usart-stmicroelectronics.pdf
+& Software
+Application Notes https://www.st.com/resource/en/application_note/an4734-stm32cube-
+for related Tools firmware-examples-for-stm32f3-series-stmicroelectronics.pdf
+& Software
+Application Notes https://www.st.com/resource/en/application_note/an4834-implementation-
+for related Tools of-transmitters-and-receivers-for-infrared-remote-control-protocols-with-
+& Software        stm32cube-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an4841-digital-signal-
+for related Tools processing-for-stm32-microcontrollers-using-cmsis-stmicroelectronics.pdf
+& Software
+Application Notes https://www.st.com/resource/en/application_note/an4885-high-brightness-
+
+
+
+
+                                          Page 24
+                                                          USB-Connection-Firmware Project
+                                                                     Configuration Report
+
+
+for related Tools   led-dimming-using-the-stm32f334-discovery-kit-stmicroelectronics.pdf
+& Software
+Application Notes https://www.st.com/resource/en/application_note/an5360-getting-started-
+for related Tools with-projects-based-on-the-stm32mp1-series-in-stm32cubeide-
+& Software        stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an5361-getting-started-
+for related Tools with-projects-based-on-dualcore-stm32h7-microcontrollers-in-
+& Software        stm32cubeide-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an5394-getting-started-
+for related Tools with-projects-based-on-the-stm32l5-series-in-stm32cubeide-
+& Software        stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an5418-how-to-build-a-
+for related Tools simple-usbpd-sink-application-with-stm32cubemx-stmicroelectronics.pdf
+& Software
+Application Notes https://www.st.com/resource/en/application_note/an5426-migrating-
+for related Tools graphics-middleware-projects-from-stm32cubemx-540-to-stm32cubemx-
+& Software        550-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an5464-position-control-
+for related Tools of-a-threephase-permanent-magnet-motor-using-xcubemcsdk-or-
+& Software        xcubemcsdkful-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an5564-getting-started-
+for related Tools with-projects-based-on-dualcore-stm32wl-microcontrollers-in-
+& Software        stm32cubeide-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an5698-adapting-the-
+for related Tools xcubestl-functional-safety-package-for-stm32-iec-61508-compliant-to-
+& Software        other-safety-standards-stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an5731-stm32cubemx-
+for related Tools and-stm32cubeide-threadsafe-solution-stmicroelectronics.pdf
+& Software
+Application Notes https://www.st.com/resource/en/application_note/an4502-stm32-
+for related Tools smbuspmbus-expansion-package-for-stm32cube-stmicroelectronics.pdf
+& Software
+Application Notes https://www.st.com/resource/en/application_note/an5952-how-to-use-
+for related Tools cmake-in-stm32cubeide-stmicroelectronics.pdf
+
+
+
+
+                                           Page 25
+                                                         USB-Connection-Firmware Project
+                                                                    Configuration Report
+
+
+& Software
+Application Notes https://www.st.com/resource/en/application_note/an5054-how-to-perform-
+for related Tools secure-programming-using-stm32cubeprogrammer-stmicroelectronics.pdf
+& Software
+Application Notes https://www.st.com/resource/en/application_note/an6179-how-to-
+for related Tools integrate-the-stl-firmware-into-a-time-critical-user-application-
+& Software        stmicroelectronics.pdf
+Application Notes https://www.st.com/resource/en/application_note/an6127-getting-started-
+for related Tools with-stm32h7rx7sx-mcus-in-stm32cubeide-stmicroelectronics.pdf
+& Software
+Application Notes https://www.st.com/resource/en/application_note/an6265-getting-started-
+for related Tools with-stm32n6-mcus-in-stm32cubeide-stmicroelectronics.pdf
+& Software
+Errata Sheets     https://www.st.com/resource/en/errata_sheet/es0204-stm32f303xbc-
+                  device-errata-stmicroelectronics.pdf
+Datasheet         https://www.st.com/resource/en/datasheet/dm00058181.pdf
+Programming       https://www.st.com/resource/en/programming_manual/pm0214-stm32-
+Manuals           cortexm4-mcus-and-mpus-programming-manual-stmicroelectronics.pdf
+Reference         https://www.st.com/resource/en/reference_manual/rm0316-
+Manuals           stm32f303xbcde-stm32f303x68-stm32f328x8-stm32f358xc-stm32f398xe-
+                  advanced-armbased-mcus-stmicroelectronics.pdf
+Technical Notes   https://www.st.com/resource/en/technical_note/tn0516-overview-of-the-
+& Articles        stm32f0xf100xxf103xx-and-stm32f2xxf30xf4xx-mcus-pmsm-singledual-
+                  foc-sdk-v40-stmicroelectronics.pdf
+Technical Notes   https://www.st.com/resource/en/technical_note/tn1163-description-of-
+& Articles        wlcsp-for-microcontrollers-and-recommendations-for-its-use-
+                  stmicroelectronics.pdf
+Technical Notes   https://www.st.com/resource/en/technical_note/tn1204-tape-and-reel-
+& Articles        shipping-media-for-stm32-microcontrollers-in-bga-packages-
+                  stmicroelectronics.pdf
+Technical Notes   https://www.st.com/resource/en/technical_note/tn1205-tape-and-reel-
+& Articles        shipping-media-for-stm8-and-stm32-microcontrollers-in-fpn-packages-
+                  stmicroelectronics.pdf
+
+
+
+
+                                         Page 26
+                                                        USB-Connection-Firmware Project
+                                                                   Configuration Report
+
+
+Technical Notes   https://www.st.com/resource/en/technical_note/tn1206-tape-and-reel-
+& Articles        shipping-media-for-stm8-and-stm32-microcontrollers-in-qfp-packages-
+                  stmicroelectronics.pdf
+Technical Notes   https://www.st.com/resource/en/technical_note/tn1207-tape-and-reel-
+& Articles        shipping-media-for-stm8-and-stm32-microcontrollers-in-so-packages-
+                  stmicroelectronics.pdf
+Technical Notes   https://www.st.com/resource/en/technical_note/tn1208-tape-and-reel-
+& Articles        shipping-media-for-stm8-and-stm32-microcontrollers-in-tssop-and-ssop-
+                  packages-stmicroelectronics.pdf
+Technical Notes   https://www.st.com/resource/en/technical_note/tn1433-reference-device-
+& Articles        marking-schematics-for-stm32-microcontrollers-and-microprocessors-
+                  stmicroelectronics.pdf
+
+
+
+
+                                        Page 27
+

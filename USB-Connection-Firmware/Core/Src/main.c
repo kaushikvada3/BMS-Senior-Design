@@ -128,6 +128,8 @@ uint8_t  charge_mode = 0;           // 0 = discharge mode, 1 = charge mode
 uint8_t  fets_off_requested = 0;    // 1 = explicit FET-off mode requested
 uint8_t  last_sys_ctrl2 = 0xFF;     // Cache the last SYS_CTRL2 value to avoid redundant writes
 uint8_t  thermal_shutdown = 0;      // 1 = FETs disabled due to overtemp
+uint8_t  charger_forced_off = 0;   // 1 = C_OK==0 forced FETs off
+uint8_t  battfull_forced_off = 0;  // 1 = BATT_FULL==1 forced FETs off
 #define  CHARGE_BAL_THRESHOLD 3.800f // balance cells above 3.8V during charging
 #define  THERMAL_CUTOFF_C    60.0f   // disable FETs above 60C
 #define  THERMAL_RESUME_C    55.0f   // re-enable FETs below 55C
@@ -290,10 +292,8 @@ static void Disable_Balancing_Output(void) {
 }
 
 static void Set_SYS_CTRL2(uint8_t val) {
-    if (val != last_sys_ctrl2) {
-        BQ_WriteReg(SYS_CTRL2, val);
-        last_sys_ctrl2 = val;
-    }
+    BQ_WriteReg(SYS_CTRL2, val);
+    last_sys_ctrl2 = val;
 }
 
 static fet_mode_t Get_Requested_FET_Mode(void) {
@@ -304,7 +304,7 @@ static fet_mode_t Get_Requested_FET_Mode(void) {
 }
 
 static fet_mode_t Get_Active_FET_Mode(void) {
-    if (thermal_shutdown) {
+    if (thermal_shutdown || charger_forced_off || battfull_forced_off) {
         return FET_MODE_OFF;
     }
     return Get_Requested_FET_Mode();
@@ -580,7 +580,16 @@ int main(void)
         t_celsius[i] = voltage_to_temperature(t_voltage[i]);
     }
 
-    // --- 3.5 THERMAL SAFETY & FET CONTROL ---
+    // --- 3.5 CHARGER / BATTERY-FULL SAFETY CHECKS ---
+    {
+        uint8_t c_ok_raw      = HAL_GPIO_ReadPin(C_OK_GPIO_Port, C_OK_Pin);
+        uint8_t batt_full_raw = HAL_GPIO_ReadPin(BATT_FULL_GPIO_Port, BATT_FULL_Pin);
+
+        charger_forced_off  = (c_ok_raw == GPIO_PIN_RESET) ? 1 : 0;      // C_OK LOW → charger fault
+        battfull_forced_off = (batt_full_raw == GPIO_PIN_SET) ? 1 : 0;    // BATT_FULL HIGH → full
+    }
+
+    // --- 3.6 THERMAL SAFETY & FET CONTROL ---
     {
         // Find max valid temperature
         float max_valid_temp = -300.0f;
@@ -600,18 +609,18 @@ int main(void)
             thermal_shutdown = 0;
         }
 
-        if (!thermal_shutdown) {
-            if (fets_off_requested) {
-                Set_SYS_CTRL2(SYS_CTRL2_FETS_OFF); // both FETs explicitly off
-            } else if (charge_mode) {
-                Set_SYS_CTRL2(SYS_CTRL2_CHARGE_ON); // charge ON, discharge OFF
-            } else {
-                Set_SYS_CTRL2(SYS_CTRL2_DISCHARGE_ON); // discharge ON, charge OFF
-            }
+        if (thermal_shutdown || charger_forced_off || battfull_forced_off) {
+            Set_SYS_CTRL2(SYS_CTRL2_FETS_OFF);
+        } else if (fets_off_requested) {
+            Set_SYS_CTRL2(SYS_CTRL2_FETS_OFF); // both FETs explicitly off
+        } else if (charge_mode) {
+            Set_SYS_CTRL2(SYS_CTRL2_CHARGE_ON); // charge ON, discharge OFF
+        } else {
+            Set_SYS_CTRL2(SYS_CTRL2_DISCHARGE_ON); // discharge ON, charge OFF
         }
     }
 
-    // --- 3.6 CELL BALANCING ---
+    // --- 3.7 CELL BALANCING ---
     static uint32_t last_balance_eval = 0;
     if ((HAL_GetTick() - last_balance_eval) >= 5000) {
         last_balance_eval = HAL_GetTick();
@@ -763,6 +772,7 @@ int main(void)
         "fan_auto:%d fan_duty:%d\r\n"
     	"SYS_STAT:%x Load Present:%x\r\n"
         "fet_mode:%s charge_fet:%d discharge_fet:%d thermal_shutdown:%d\r\n"
+        "charger_ok:%d batt_full:%d charger_forced_off:%d battfull_forced_off:%d\r\n"
         "bal_en:%d bal_thresh:%d bal_mask:%d bal_alt:%d charge:%d\r\n\r\n",
         v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9],
         t_celsius[0], t_celsius[1], t_celsius[2], t_celsius[3], t_celsius[4],
@@ -772,6 +782,7 @@ int main(void)
         fan_auto_mode, (int)effective_duty,
         faultStatus[0], loadPresent[0],
         FET_Mode_Name(Get_Active_FET_Mode()), (int)Charge_FET_Is_On(), (int)Discharge_FET_Is_On(), (int)thermal_shutdown,
+        (int)(!charger_forced_off), (int)battfull_forced_off, (int)charger_forced_off, (int)battfull_forced_off,
         (int)bal_enabled, (int)bal_threshold_mv, (int)bal_active_mask, (int)bal_alt_enabled, (int)(Get_Active_FET_Mode() == FET_MODE_CHARGE));
     CDC_Transmit_FS((uint8_t*)data_buffer, len);
 
@@ -1269,7 +1280,11 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
-
+  /*Configure GPIO pins : C_OK_Pin BATT_FULL_Pin */
+  GPIO_InitStruct.Pin = C_OK_Pin|BATT_FULL_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
   /* USER CODE END MX_GPIO_Init_2 */
 }
 

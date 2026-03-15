@@ -1,0 +1,551 @@
+     EE175AB Final Report Template
+
+
+                       Project Title
+                     EE 175AB Final Report
+
+  Department of Electrical Engineering, UC Riverside
+
+
+
+
+Project Team Mem-
+ber(s)
+
+Date Submitted
+
+Section/ Professor
+
+Revision              e.g., revision 1.1
+
+URL of Project http://
+YouTube      Videos,
+Wiki/Webpage
+Permanent Emails
+of all team members
+EE175AB Final Report                                                           1
+
+
+                                   Summary
+This report presents .......
+
+Note:
+    • Sections marked with * are required
+    • In each section, you must clearly identify which team member is responsible
+      for which objectives, modules or tasks.
+EE175AB Final Report                                                                2
+
+
+Revisions
+
+  Version     Description of Version         Author(s)      Date Com- Approval
+                                                            pleted
+  Version     Information about the revision. Full Name     00/00/00
+  Number      This table does not need to be
+              filled in whenever a document
+              is touched, only when the ver-
+              sion is being upgraded.
+  0.5         First draft                     X, y, z       02/01/2026
+  0.8         List major changes from previ- X, y, z        03/01/2026
+              ous version, reference to the
+              related Engineering Change
+              Notices (ECN) or Engineering
+              Design Notes (EDN).
+
+
+
+This template serves as a basis for the EE175 Senior Design Project Final Report.
+This document should be customized to the needs of each specific project. This
+template is only a starting point.
+This template does not imply that all components listed in this template should be
+included (except the sections marked with *) nor does it imply that this template
+includes all the necessary components needed for a specific project. Instead this
+template provides a basic starting point that will work well in many situations. The
+design team must modify and/or expand the contents in order to meet the specific
+requirements of their project.
+If a section is not marked with an * but is irrelevant to your project, do not remove it and do not
+Table of Contents
+
+
+Contents
+Revisions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .   2
+
+Table of Contents . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .   3
+
+1 * Executive Summary . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .       5
+
+2 * Introduction . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .    6
+  2.1 * Design Objectives and System Overview . . . . . . . . . . . . . . . . . . .           6
+  2.2 * Backgrounds and Prior Art . . . . . . . . . . . . . . . . . . . . . . . . . . .       6
+  2.3 * Development Environment and Tools . . . . . . . . . . . . . . . . . . . . .           6
+  2.4 * Related Documents and Supporting Materials . . . . . . . . . . . . . . . .            6
+  2.5 * Definitions and Acronyms . . . . . . . . . . . . . . . . . . . . . . . . . . .        7
+
+3 * Design Considerations . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .       8
+  3.1 * Realistic Constraints . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .     8
+  3.2 System Environment and External Interfaces . . . . . . . . . . . . . . . . .            8
+  3.3 * Industry Standards . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .      8
+  3.4 * Knowledge and Skills . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .      8
+  3.5 * Budget and Cost Analysis . . . . . . . . . . . . . . . . . . . . . . . . . . .        9
+  3.6 * Safety . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .    9
+  3.7 Performance, Security, Quality, Reliability, Aesthetics etc. . . . . . . . . . .        9
+  3.8 * Documentation . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .       9
+  3.9 Risks and Volatile Areas . . . . . . . . . . . . . . . . . . . . . . . . . . . . .      9
+
+4 * Experiment Design and Feasibility Study . . . . . . . . . . . . . . . . . . . . 10
+  4.1 * Experiment Design . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 10
+  4.2 * Experiment Results, Data Analysis and Feasibility . . . . . . . . . . . . . . 10
+
+5 * Architecture and High Level Design . . . . . . . . . . . . . . . . . . . . . . .          11
+  5.1 * System Architecture and Design . . . . . . . . . . . . . . . . . . . . . . .          11
+  5.2 * Hardware Architecture . . . . . . . . . . . . . . . . . . . . . . . . . . . . .       11
+  5.3 * Software Architecture (only required if your design includes software) . . .          11
+  5.4 * Rationale and Alternatives . . . . . . . . . . . . . . . . . . . . . . . . . . .      11
+
+6 Data Structures (include if used) . . . . . . . . . . . . . . . . . . . . . . . . . .       12
+  6.1 Internal software data structure . . . . . . . . . . . . . . . . . . . . . . . . .      12
+  6.2 Global data structure . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .     12
+  6.3 Temporary data structure . . . . . . . . . . . . . . . . . . . . . . . . . . . .        12
+  6.4 Database descriptions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .       12
+
+7 * Low Level Design . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 13
+
+                                               3
+EE175AB Final Report                                                                            4
+
+
+   7.1 *Module i (for i = 1 to n) (change the italics to the name of your module) . . 13
+       7.1.1 Processing narrative for module i (change italics to the name of your
+             module) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 13
+       7.1.2 Module i interface description (change italics to the name of your
+             module) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 13
+       7.1.3 Module i processing details (change italics to the name of your module) 13
+
+8 * Technical Problem Solving . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 14
+  8.1 * The X Problem (change X to a description of your problem, e.g., Bluetooth
+       Interface Problem, the Line Following Problem) . . . . . . . . . . . . . . . . 14
+  8.2 * Solving the X Problem (change X to a description of your problem, e.g.,
+       Bluetooth Interface Problem) . . . . . . . . . . . . . . . . . . . . . . . . . . 14
+
+9 User Interface Design . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 15
+  9.1 Application Control . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 15
+  9.2 User Interface Screens . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 15
+
+10 * Test Plan . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .   16
+   10.1 * Test Design . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .    16
+   10.2 * Bug Tracking . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .     16
+   10.3 * Quality Control . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .    16
+   10.4 * Identification of critical components . . . . . . . . . . . . . . . . . . . . . .    16
+   10.5 * Items Not Tested by the Experiments . . . . . . . . . . . . . . . . . . . . .        16
+
+11 * Test Report . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 17
+   11.1 * Test 1 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 17
+   11.2 * Test i (one section for each test i = 2, ...., n) . . . . . . . . . . . . . . . . . 17
+
+12 * Conclusion and Future Work . . . . . . . . . . . . . . . . . . . . . . . . . . .          18
+   12.1 * Conclusion . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .   18
+   12.2 Future Work . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .    18
+   12.3 * Acknowledgement . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .        18
+
+13 * References . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 19
+
+14 * Appendices . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 20
+EE175AB Final Report                                                                     5
+
+
+* Executive Summary
+
+In one page, present the summary of your project. Outline the motivation, overall goals,
+design objectives, key features, testing results, and your important achievements.
+You want to convince the readers succinctly that your project is important, useful, makes a
+good senior design project and you succeed in achieving your design objectives.
+You may use several paragraphs, but no more sub-sections.
+EE175AB Final Report                                                                       6
+
+
+* Introduction
+
+This space may be used to provide an introduction for the design and ties to other project
+materials.
+
+* Design Objectives and System Overview
+Describe the concept and application of the design: What are you designing, technical
+principles, why this is a meaningful project, what are the intended applications, how is it
+related to subjects in electrical engineering, what are the overall goals of the project.
+High-level description of the system structure, functionalities, interactions with external
+systems, system issues, operating environment, user environment, inputs, outputs, etc.
+You do not need to provide implementation details in this section.
+You must provide a list of quantitative technical design objectives, e.g., accuracy of 95%,
+sensor range of 20 feet, 90% successful retrieval or recognition, mean square error < 0.1,
+response time < 1ms, dynamic range of 20Vp-p, bandwidth of 20MHz, transmission range
+> 100m at 100mW, SNR > 10dB, data transfer rate = 100Mbps, costing less than $500,
+etc.
+Responsibilities: clearly state which team member is responsible for which goals/objectives
+
+* Backgrounds and Prior Art
+Perform literature and Internet search to find out existing products or designs for achieving
+the same or similar objectives of your design. Describe your findings here. List all refer-
+ences in the References section (Section 14). What are the advantages and shortcomings
+of what you want to design compared to existing products and designs?
+
+* Development Environment and Tools
+Describe the design environment, hardware and software tools, and testing equipment
+required to complete this project. Example, your hardware development environment is
+Rasberry pi with Linux, you used Android Studio for your app development, etc.
+
+* Related Documents and Supporting Materials
+References to any industry standards involved in your project should be listed here.
+(Optional) – Note any other references or related materials. For instance, if this design
+required interfacing with X10 hardware devices, then you would want a reference to the
+X10 specification. If you use the .NET development environment or need to interface with
+MS Internet Explorer, the related documents should be referenced here.
+EE175AB Final Report                                                                  7
+
+
+* Definitions and Acronyms
+List any project definitions and acronyms introduced to the project by this design.
+EE175AB Final Report                                                                      8
+
+
+* Design Considerations
+
+This section describes issues that need to be addressed or resolved prior to or while
+completing the design as well as issues that may influence the design process.
+
+* Realistic Constraints
+Describe any constraints on the system that have a significant impact on the design
+of the system. (e.g. power consumption constraints, voltage/current supply constraints,
+processor speed/memory size constraints, frequency constraints, motor speed constraints,
+wireless transmission power and range constraints, performance requirements, constraints
+from application requirements, end user characteristics, weight/size constraints, validation
+requirements, project time and budget constraints, government regulations and legal
+constraints, societal and environmental constraints, requirements of industry standards,
+end product price constraints, etc.)
+
+System Environment and External Interfaces
+Describe the system, hardware and software that your product must operate in and interact
+with, any communication protocols and APIs the system must comply to, etc.
+
+* Industry Standards
+Describe the industry standards involved with the hardware and software in your de-
+sign. This may include hardware, software and protocols, such as RS232, I2C, USB,
+PCI, IEEE802.11, Bluetooth, Zigbee, RFID, UAL, safety standards, etc. Also discuss
+de facto standards such as operating system APIs, device drivers, programming lan-
+guage/environments, popular interfaces such as SPI, etc. used in your project.
+You must reference the standards documents and describe how you design will comply
+with the standards.
+You must describe how the standard requirements affected your design and include
+examples of aspects of the standards that you encountered in your design projects, e.g.,
+voltage levels, packet size, baud rate, data rate, carrier frequency, etc.
+
+* Knowledge and Skills
+Describe the knowledge and skills required by this project. Complete the following for each
+team member:
+List all the Electrical Engineering and other technical courses (e.g., Computer science or
+upper division physics) you took or are taking that are related to your project.
+List any new knowledge and skills that you had to learn while working on the project in
+order to complete it.
+EE175AB Final Report                                                                     9
+
+
+* Budget and Cost Analysis
+Present your budget and/or cost analysis.
+
+* Safety
+Discuss safety considerations and specify safety objectives
+
+Performance, Security, Quality, Reliability, Aesthetics etc.
+Describe the considerations and processes to ensure meeting performance, security,
+quality control, reliability, aesthetics etc. requirements.
+
+* Documentation
+Describe the processes for generating and maintaining technical and user documentation
+for the project, including design notes, engineering change notices, version update and
+version control procedures.
+
+Risks and Volatile Areas
+(Optional) - Describe any notably volatile or risky areas of the system and any special
+strategies taken to mitigate risks or prepare for changes. These are risks specific for the
+design—not project management type stuff. For instance if there is an algorithm that is
+especially difficult that you must implement.
+EE175AB Final Report                                                                       10
+
+
+* Experiment Design and Feasibility Study
+
+Include this section if you need to conduct experiments to evaluate the feasibility of your
+project ideas, alternatives, trade-offs and realistic engineering constraints, and to answer
+key design questions, such as what parts to use, how to collect data, whether accuracy of
+sensor is sufficient for the design objective, whether battery provides enough power, what
+hardware or software interface methods to use to connect the different modules, etc.
+Examples:
+If you want to use ultrasound sensor to detect obstacles in real time, you need to design
+experiments to verify whether this is feasible, analyze the data to determine the accuracy,
+sampling speed (how quickly can you get a measurement to meet real time requirement),
+sensing angle etc.
+If you want to use hall effect sensor to measure speed and distance traveled, do experi-
+ments and data analysis to determine the accuracy, sampling speed (how quickly can you
+get a measurement to meet real time requirement) etc.
+If you want to use an inverter to convert DC to AC, do experiments and data analysis to
+verify what input voltage and current range is required to produce an acceptable AC supply.
+If you want to use an amplifier to amplify EEG signal, do experiments and data analysis to
+determine what is the gain and filtering required.
+
+* Experiment Design
+Describe the objective, setup, procedure and expected results of each experiment.
+State clearly who is responsible for which task
+
+* Experiment Results, Data Analysis and Feasibility
+Carry out the experiments designed above and present experimental data, quantitative
+analysis of the data, and the conclusion to show the feasibility of your project idea, how the
+experiments help you decide whether your technical design objectives can be achieved,
+and how they help you select the best solution to be further developed in the design project.
+State clearly who is responsible for which task
+EE175AB Final Report                                                                    11
+
+
+* Architecture and High Level Design
+
+The architecture provides the top level design view of a system and provides a basis for
+more detailed design work. These are the top level components of the system you are
+building and their relationships.
+
+* System Architecture and Design
+This section provides a high level overview of the structural and functional decomposition
+of the system. Focus on how and why the system is decomposed in a particular way
+rather than on details of the particular components. Include information on the major
+responsibilities and roles the system (or portions thereof) must play. A block diagram
+representation of the architecture must be included, which should show the hierarchical
+structure of the modules; interaction and interface among modules and with databases,
+external software, system, and networks
+Provide a description and block diagrams of a system element or set of elements at a
+conceptual or functional level that describes a clearly defined view or model of the entire
+system or a subset of the system. Each component represents a similar grouping of
+functionality.
+State clearly who is responsible for which module/task
+
+* Hardware Architecture
+Show hardware block diagram showing hardware functional blocks and how they interface.
+State clearly who is responsible for which module/task
+
+* Software Architecture (only required if your design includes software)
+Show software block diagram
+State clearly who is responsible for which module/task
+
+* Rationale and Alternatives
+This section discusses why you are using the architecture or approach you have decided
+upon. A discussion of other architectures or approaches considered should be presented
+here.
+EE175AB Final Report                                                                        12
+
+
+Data Structures (include if used)
+
+A description of all data structures including internal, global, and temporary data structures.
+State clearly who is responsible for which module/task
+
+Internal software data structure
+Data structures that are passed among components the software are described.
+
+Global data structure
+Data structured that are available to major portions of the architecture are described.
+
+Temporary data structure
+Files created for interim use are described.
+
+Database descriptions
+Database(s) created as part of the application is(are) described.
+EE175AB Final Report                                                                   13
+
+
+* Low Level Design
+
+This section provides low-level design descriptions that directly support construction of
+modules. Normally this section may be split into separate documents for different areas of
+the design. For each component we now need to break it down into its fundamental units or
+modules. Each module or block may be hardware or software or a subsystem implemented
+using hardware and software. Make sure to provide a well-commented schematic of all
+modules and/or system blocks described in the system block diagram (SBD).
+Must include hardware circuit schematics and program flowchart for each module.
+Example of circuit schematics: http://www.arduino.cc/en/uploads/Main/arduino-uno-schematic.
+pdf
+Example of flowcharts of your programs: http://www.mdpi.com/electronics/electronics-03-00636/
+article_deploy/html/images/electronics-03-00636-g011-1024.png
+
+*Module i (for i = 1 to n) (change the italics to the name of your module)
+Provide or reference a detailed description, schematic and/or diagrams of this module.
+Repeat this section for each module i.
+State clearly who is responsible for which module/task
+
+Processing narrative for module i (change italics to the name of your module)
+A processing narrative for module i is presented.
+
+Module i interface description (change italics to the name of your module)
+A detailed description of the input and output interfaces of the module with other modules
+in the system, with other software or systems or module is presented.
+
+Module i processing details (change italics to the name of your module)
+A detailed description for each module is presented, including hardware, algorithm, local
+data structures, design constraints, limitations, performance issues, etc.
+EE175AB Final Report                                                                    14
+
+
+* Technical Problem Solving
+
+Document all the technical difficulties you encountered
+
+* The X Problem (change X to a description of your problem, e.g., Bluetooth Interface
+Problem, the Line Following Problem)
+Describe the problem, who contributed to the identification of the problem
+
+* Solving the X Problem (change X to a description of your problem, e.g., Bluetooth
+Interface Problem)
+Describe the approaches you used to solve problem, the technical difficulties you overcome,
+what new skills or lessons you learned in the process and who contributed to solving the
+problem
+If you were unable to solve the problem, still describe what you did and what you decided
+to do instead to avoid the problem
+Repeat the above two subsections for each technical difficulty you encountered.
+EE175AB Final Report                                                                         15
+
+
+User Interface Design
+
+This section provides user interface design descriptions that directly support construction
+of user interface screens.
+State clearly who is responsible for which module/task
+
+Application Control
+Detail the common behavior that all screens will have. Common look and feel details such
+as menus, popup menus, toolbars, status bar, title bars, drag and drop mouse behavior
+should be described here. Conventions and standards used for designing/implementing
+the user interface are stated.
+
+User Interface Screens
+Illustrate all major user interface screens and describe the behavior and state changes
+that the user will experience. All screen objects and actions are identified.
+A screen transition diagram or table can optionally be created to illustrate the flow of control
+through the various screens.
+This does not have to be actual screenshots since they have not been programmed. They
+can be powerpoint drawings or mockups created in Visual Basic or some other rapid
+GUI-building tool.
+EE175AB Final Report                                                                     16
+
+
+* Test Plan
+
+* Test Design
+Design tests to verify whether your design meets the design objectives and test your
+modules and the prototype you built. The set of tests which constitute your test plan are to
+be specified, including as much detail as is possible at this stage.
+Tests and expected responses
+Specify the tests and the expected results.
+Test Case i (repeat for i=1,...n):
+  1. What is the objective of the experiment? What function does it test? Which technical
+     design objective does this measure?
+  2. Experiment setup
+  3. Experiment procedure and how to collect data
+  4. Expected results
+State clearly who is responsible for which experiment
+
+* Bug Tracking
+A database will be used to track defects found while performing the test cases. All defects
+will be logged as they are discovered. Defects will be assigned to Person A to fix, or to
+Person B to investigate.
+
+* Quality Control
+The completed test cases will be reviewed to ensure that all cases were run; that all were
+completed successfully; and that any deviations from the test cases were noted accordingly.
+Each step should be marked as Passed or Failed. Failed cases should be marked with the
+date and time of the failure, and the associated test track number. When a failed case is
+fixed, the date and time of the retest should be noted
+
+* Identification of critical components
+Describe the components that are critical and demand particular attention during testing
+are identified.
+
+* Items Not Tested by the Experiments
+List any functions or processes not being tested by the experiments and why.
+EE175AB Final Report                                                                   17
+
+
+* Test Report
+
+Carry out the experiments designed in the section above to test your modules and prototype
+and present the results. Present the results of the experiments and provide an analysis of
+the experimental test data.
+State clearly who is responsible for which test case
+Each test must be run multiple times. When you find deviation from the expected results,
+you must take action to debug your design, then test it again. Report each test iteration
+below
+
+* Test 1
+Person(s) performing the experiment
+  1. Test results, person performing the test
+  2. Comparison with expected results
+  3. Analysis of Test results
+  4. Corrective actions taken
+Must be performed multiple times. Report the above for each iteration of the test.
+
+* Test i (one section for each test i = 2, ...., n)
+Person(s) performing the experiment
+  1. Test results, person performing the test
+  2. Comparison with expected results
+  3. Analysis of Test results
+  4. Corrective actions taken
+Must be performed multiple times. Report the above for each iteration of the test.
+EE175AB Final Report                                                                        18
+
+
+* Conclusion and Future Work
+
+* Conclusion
+Present the conclusion of your project, state clearly whether the finished work meet the
+overall project goals and the quantitative technical design objectives. If not, just state what
+and how it failed and the TECHNICAL reasons why it failed and what you have learned.
+State clearly who is responsible for achieving or missing which goals/objectives.
+* Must complete for each team member: Describe what you learned from this project, both
+in terms of technical knowledge and skill, professional and personal growth.
+Do NOT complain and give personal, non-technical reasons why it failed. You should talk
+to your advisors about these, but do not include them in a design document.
+
+Future Work
+Expansion and Improvement; discuss the impact of this work and its possible expansion
+into perhaps a more promising design than what you had started. This is particularly
+important in order to address the marketability of your design. Or why this project merits
+another look by perhaps next year’s students.
+
+* Acknowledgement
+Be considerate and credit all those who have helped you in this project, especially credit
+the people who provided ideas or solutions.
+EE175AB Final Report                                                                       19
+
+
+* References
+
+List the references used in the design, including books, data sheets, technical documents,
+industry standard documents. References can be printed documents or online.
+Use the IEEE Citation procedures and list in alphabetic order all your references based on
+their first, second, etc., authors, in a chronological order. You may include these references
+depending on each chapter or as a whole.
+EE175AB Final Report                                                                     20
+
+
+* Appendices
+
+Presents information that supplements the design specification, including:
+* Appendix A: Parts List
+* Appendix B: Equipment List
+* Appendix C: Software List (URL to online drive or SVN server, with sharing set to Public.
+Can omit this appendix if your project didn’t involving writing a program)
+Appendix D: Special Resources
+Appendix E: User’s Manual - If your design requires instructions for future use, here is the
+place to put that information.
+Appendix F to Z: Whatever Else You Wish To Add; for instance, here, you may include
+detailed solution methods or derivations, which you need for your future review of this
+report or whoever else is interested to pursue this study. Some side drawings and printouts
+that are of value to people who will continue this work should be given herein. Some
+information about the vendors and how to locate parts for similar projects must be included
+herein. In other words, information that is important about the overall construction of the
+project should be given herein.
+

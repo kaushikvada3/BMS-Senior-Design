@@ -1,0 +1,80 @@
+             BMS Firmware Architecture Overview
+                                   Kaushik Vada
+                                 November 3, 2025
+
+
+1       Firmware Architecture Overview
+The Battery Management System (BMS) firmware is designed to ensure safe operation,
+continuous monitoring, and protection of the lithium-ion battery pack across multiple
+runtime conditions. The firmware executes within an RTOS environment to support
+deterministic task scheduling and timely fault-response behavior.
+
+1.1     BMS Modes of Operation
+The BMS operates in two primary power modes:
+    • SHIP Mode: Low-power hibernation state intended for storage and shipping
+      conditions. Only essential safety monitoring remains active to minimize power
+      consumption and prevent unnecessary battery drain.
+    • NORMAL Mode: Full operational state in which sensing, protection, balancing,
+      and communication functions are active. The BMS continuously monitors pack
+      health and reports data to the host system.
+
+1.2     RTOS State Machines
+Under NORMAL Mode, core safety tasks execute periodically according to their timing
+requirements.
+
+1.2.1    Temperature Monitoring Task (ADC Sampler)
+Responsible for thermal fault protection:
+    • Periodically samples all thermistors using the ADC
+    • Compares each reading against configured over-temperature thresholds
+    • On fault detection:
+         – Activate audible buzzer
+         – Flash the LED corresponding to the overheated cell (one LED per thermistor)
+         – Transmit alert and cell identifier to the host GUI for visualization
+   This task runs at a high frequency due to the sudden nature of thermal runaway
+events.
+
+
+
+
+                                            1
+1.2.2    Overcurrent Monitor Task
+Provides high-speed protection against current surges:
+   • Samples pack current via the Coulomb Counter register in the BMS IC
+   • Compares the value against software-defined overcurrent thresholds
+   • On violation:
+         – Trigger buzzer and fault indication LEDs
+         – Send alert to host GUI for user awareness
+   Like temperature monitoring, this task requires rapid execution to catch transient
+fault events.
+
+1.2.3    BMS Handler Task
+Overall system management and slow-timescale functions:
+   • Schedules and executes cell balancing operations
+   • Maintains overall state machine control and internal flags
+   • Periodically transmits telemetry and status to the GUI
+   • Operates based on RTOS timer interrupts or asynchronous safety triggers
+   Because voltage imbalance progresses slowly, this task operates at a lower rate.
+
+1.3     System Summary
+Table 1 summarizes major tasks and their roles in ensuring battery safety and long-term
+operation.
+
+         Task               Execution Rate       Primary Purpose
+ Temperature Monitoring        10–100 ms         Detect overheating early and prevent
+                                                 thermal runaway
+   Overcurrent Monitor          10–100 ms        Detect short circuits / excessive dis-
+                                                 charge currents
+        BMS Handler                1–10 s        Manage cell balancing and maintain
+                                                 long-term pack health
+
+            Table 1: RTOS task execution rates and associated safety roles.
+
+    In summary, the BMS firmware leverages its RTOS-based architecture to prioritize
+rapid fault detection while sustaining overall system health. Audible, visual, and digital
+alert paths provide both local and remote visibility into safety-critical events.
+
+
+
+
+                                            2
+

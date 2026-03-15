@@ -3787,6 +3787,10 @@ const loadPresentEl = document.querySelector("[data-load-present]");
 const chargeFetStatusEl = document.querySelector("[data-charge-fet-status]");
 const dischargeFetStatusEl = document.querySelector("[data-discharge-fet-status]");
 const fetThermalNoteEl = document.querySelector("[data-fet-thermal-note]");
+const chargerOkStatusEl = document.querySelector("[data-charger-ok-status]");
+const battFullStatusEl = document.querySelector("[data-batt-full-status]");
+const chargerForcedNoteEl = document.querySelector("[data-charger-forced-note]");
+const battfullForcedNoteEl = document.querySelector("[data-battfull-forced-note]");
 const thermalTrendEl = document.querySelector("[data-thermal-trend]");
 const cellGridEl = document.querySelector(".cell-grid");
 const detailPanel = document.querySelector("[data-detail-panel]");
@@ -3882,6 +3886,12 @@ function createBlankState() {
       charge_enabled: null,
       discharge_enabled: null,
       thermal_shutdown: false,
+    },
+    charger_status: {
+      charger_ok: null,
+      batt_full: null,
+      charger_forced_off: false,
+      battfull_forced_off: false,
     },
   };
 }
@@ -4266,6 +4276,34 @@ function syncFetControls(fetStatus) {
   }
 }
 
+function syncChargerStatus(chargerStatus) {
+  if (!chargerStatus) return;
+
+  const chargerOk = chargerStatus.charger_ok;
+  const battFull = chargerStatus.batt_full;
+  const chargerForced = chargerStatus.charger_forced_off;
+  const battfullForced = chargerStatus.battfull_forced_off;
+
+  // Charger OK indicator: green=OK, red=fault
+  updateFetIndicator("charger-ok", chargerOkStatusEl, chargerOk);
+
+  // Battery Full indicator: "Full"/"Charging" with red/green
+  if (battFullStatusEl) {
+    battFullStatusEl.textContent = battFull === true ? "Full" : battFull === false ? "Charging" : "--";
+    battFullStatusEl.classList.remove("is-on", "is-off");
+    battFullStatusEl.classList.add(battFull ? "is-off" : "is-on");
+    const indicatorEl = document.querySelector('[data-fet-indicator="batt-full"]');
+    if (indicatorEl) {
+      indicatorEl.classList.remove("is-on", "is-off");
+      indicatorEl.classList.add(battFull ? "is-off" : "is-on");
+    }
+  }
+
+  // Show/hide forced-off notes
+  if (chargerForcedNoteEl) chargerForcedNoteEl.hidden = !chargerForced;
+  if (battfullForcedNoteEl) battfullForcedNoteEl.hidden = !battfullForced;
+}
+
 function getEloadDacSliderValue() {
   const slider = document.getElementById("eload-dac-slider");
   const sliderValue = Number.parseInt(slider?.value ?? "", 10);
@@ -4553,6 +4591,7 @@ function updateHud(data) {
     loadPresentEl.textContent = isFiniteNumber(data.load_present) ? (data.load_present ? "Yes" : "No") : "--";
   }
   syncFetControls(data.fet_status);
+  syncChargerStatus(data.charger_status);
 
   // Trigger data pulse with speed based on data rate
   if (fan1Rpm > 0) {
@@ -5556,6 +5595,10 @@ function flushDashboardData() {
     if (legacyFetStatus) {
       currentState.fet_status = legacyFetStatus;
     }
+  }
+
+  if (data.charger_status) {
+    currentState.charger_status = data.charger_status;
   }
 
   updateHud(currentState);

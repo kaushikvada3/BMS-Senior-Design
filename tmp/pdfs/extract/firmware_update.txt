@@ -1,0 +1,272 @@
+                  BMS Firmware Development Plan
+                                      Kaushik Vada
+
+
+Contents
+1 Project Overview                                                                          2
+
+2 Block Diagram Summary                                                                     2
+  2.1 Battery Front-End . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .     2
+  2.2 Thermal Sensing . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .     2
+  2.3 Power and Isolation . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .   2
+  2.4 Control Outputs . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .     3
+  2.5 Host Interface and Testbench Setup . . . . . . . . . . . . . . . . . . . . . . .      3
+
+3 Firmware Architecture                                                                     3
+  3.1 Required Drivers . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .    3
+  3.2 Core State Machines . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .     3
+      3.2.1 Temperature State Machine . . . . . . . . . . . . . . . . . . . . . . .         3
+      3.2.2 State of Charge (SOC) Machine . . . . . . . . . . . . . . . . . . . . .         4
+      3.2.3 Safety Path . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .     4
+  3.3 Communications Protocol . . . . . . . . . . . . . . . . . . . . . . . . . . . .       4
+
+4 GUI Integration Strategy                                                                  4
+  4.1 Expected JSON Schema . . . . . . . . . . . . . . . . . . . . . . . . . . . . .        4
+  4.2 Python Host Bridge . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .    4
+  4.3 Frontend Modifications . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .    5
+  4.4 Application Launcher Alignment . . . . . . . . . . . . . . . . . . . . . . . .        5
+
+5 Firmware Bring-Up Procedure                                                               5
+  5.1 STM32CubeMX Project Setup . . . . . . . . . . . . . . . . . . . . . . . . . .         5
+  5.2 Sensor Acquisition Layer . . . . . . . . . . . . . . . . . . . . . . . . . . . . .    5
+  5.3 Control and Safety Logic . . . . . . . . . . . . . . . . . . . . . . . . . . . . .    5
+  5.4 USB Frame Format . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .      6
+  5.5 Initial Bench Validation . . . . . . . . . . . . . . . . . . . . . . . . . . . . .    6
+
+6 End-to-End System Validation                                                              6
+
+7 Recommended Next Steps                                                                    6
+
+
+
+                                              1
+1     Project Overview
+The battery management system utilizes a 10s1p Molicel P42A pack (∼36 V, 4.2 Ah) instru-
+mented with NTC thermistors and supported by an active fan cooling system. The isolated
+electronics block contains an STM32 microcontroller, an 8-channel isolated SPI ADC, an
+I2C real-time clock, isolated DC/DC supplies for 5V and 3.3V, and a USB-C CDC link to
+a host computer. Safety mechanisms include a PTC fuse and comparator-driven MOSFET
+gate disabling.
+    The firmware must periodically acquire voltage, current, and temperature data, con-
+trol cooling and protection mechanisms, ensure fail-safe operation, and stream structured
+telemetry to a host graphical interface.
+
+
+2     Block Diagram Summary
+2.1    Battery Front-End
+    • 10s1p Molicel P42A cell group with low-side shunt current sensing.
+
+    • BQ76930 BMS IC providing voltage sensing, current reporting, cell balancing, and
+      fault reporting.
+
+    • Low-side electronic breaker (with redundancy in revision 2).
+
+    • Per-cell balance resistors and capacitance.
+
+    • Optional comparator and discrete gate driver for redundant hardware shutdown.
+
+2.2    Thermal Sensing
+    • Ten NTC thermistors routed to an isolated ADC.
+
+    • Divider network and low-pass filters referenced to VREF THERM.
+
+    • Temperature sampling rate of 5–10 Hz.
+
+    • Exceeding thermal threshold triggers GUI alert, LED indicator, and breaker opening.
+
+2.3    Power and Isolation
+    • Always-on power path ensures STM32 remains active even when breaker opens.
+
+    • PTC fuse protects isolated 5V rail.
+
+    • 5V-to-3.3V isolated DC/DC regulation.
+
+    • ESD protection, watchdog, and supervisor ICs included in revision 2.
+
+
+
+
+                                              2
+2.4     Control Outputs
+    • PWM fan output routed through isolated driver/optocoupler.
+
+    • Comparator outputs driving MOSFET gate disable circuitry.
+
+    • Redundant breaker-actuation GPIO.
+
+    • Isolated I2C connection to real-time clock.
+
+2.5     Host Interface and Testbench Setup
+    • USB-C CDC link to desktop GUI.
+
+    • Bench testing includes charger and electronic load.
+
+    • Optional NVIDIA Jetson downstream consumer for ML telemetry.
+
+
+3       Firmware Architecture
+3.1     Required Drivers
+    • I2C for BQ76930 battery front end.
+
+    • SPI or I2C for isolated 10-channel ADC.
+
+    • I2C connection to real-time clock.
+
+    • PWM timers for cooling fan(s).
+
+    • GPIO for breaker, fault inputs, and comparator signals.
+
+    • USB-CDC for structured host communication.
+
+    • Windowed watchdog for safety and firmware reliability.
+
+3.2     Core State Machines
+3.2.1    Temperature State Machine
+    • Sample NTC array at 5–10 Hz.
+
+    • Compare temperatures against warning and cutoff thresholds.
+
+    • On trip: log event, trigger USB alert, activate LED, and open breaker.
+
+
+
+
+                                             3
+3.2.2    State of Charge (SOC) Machine
+    • Integrate shunt current using BQ76930 coulomb-count reporting.
+
+    • Reset logic triggered on charge-source plug/unplug.
+
+    • SOC bounds limit system behavior and GUI reporting.
+
+3.2.3    Safety Path
+    • BQ76930 interrupts and comparator signals serviced by highest priority ISRs.
+
+    • Hardware trip opens breaker regardless of firmware execution state.
+
+    • MCU remains powered to retrieve and transmit failure information.
+
+3.3     Communications Protocol
+    • USB-CDC transmits structured frames containing:
+
+         – Timestamp
+         – Pack voltage and current
+         – Per-cell voltages and temperatures
+         – Fan RPM
+         – Operating mode
+         – Fault bitmap (OV, UV, OT, OCP, comparator trip)
+
+    • Accept inbound control messages (fan override, mode selection, balancing enable).
+
+
+4       GUI Integration Strategy
+4.1     Expected JSON Schema
+{
+cells:[{id, voltage, temperature}],
+mode:"Balanced",
+fan1:{rpm},
+fan2:{rpm}
+}
+
+4.2     Python Host Bridge
+    • Implement backend/data stream.py.
+
+    • Parse binary USB-CDC telemetry frames.
+
+
+                                             4
+    • Broadcast live JSON via WebSocket at: [ ws://localhost:8766/telemetry ]
+
+    • Relay GUI-originating commands to MCU.
+
+4.3    Frontend Modifications
+    • Replace mock timers in scene.js with WebSocket consumer.
+
+    • Update GUI rendering functions on message receipt.
+
+    • Maintain fallback mock data if socket disconnects.
+
+4.4    Application Launcher Alignment
+    • gui launcher.py already serves application assets.
+
+    • Automatically launch Python bridge for turnkey execution.
+
+
+5     Firmware Bring-Up Procedure
+5.1    STM32CubeMX Project Setup
+    • Finalize microcontroller selection and pinout.
+
+    • Enable USB-CDC, I2C peripherals, SPI/I2C ADC interface, PWM timers, and EXTI
+      lines.
+
+    • Configure 1 kHz system tick; RTOS optional.
+
+5.2    Sensor Acquisition Layer
+    • Perform DMA-based SPI acquisition at 10–20 Hz.
+
+    • Apply calibration, scaling, and noise filtering.
+
+    • Timestamp packets using RTC.
+
+5.3    Control and Safety Logic
+    • Implement voltage, temperature, and current protection thresholds.
+
+    • Drive MOSFET enable logic according to comparator state.
+
+    • Execute fan control using threshold or PID strategies.
+
+    • Verify isolated power-good before enabling communication.
+
+
+
+
+                                               5
+5.4     USB Frame Format
+    • Header, payload length, data structure, CRC.
+
+    • Maintain ring buffer to prevent USB-induced blocking.
+
+5.5     Initial Bench Validation
+    • Validate ADC readout on scope and against multimeter.
+
+    • Test RTC communication over I2C.
+
+    • Sweep fan PWM duty cycle and verify RPM feedback.
+
+    • Confirm fast hardware cutoff via comparator.
+
+    • Stream test text/JSON over USB for GUI debugging.
+
+
+6      End-to-End System Validation
+    1. Finalize USB and WebSocket message formats.
+
+    2. Implement Python bridge with synthetic/mock frames.
+
+    3. Verify GUI displays live telemetry.
+
+    4. Replace mock data with real firmware output.
+
+    5. Perform combined load, charge, and thermal testing.
+
+    6. Integrate with full pack after bench-level signoff.
+
+
+7      Recommended Next Steps
+    1. Lock down MCU selection and hardware pin mapping.
+
+    2. Generate and version-control CubeMX firmware skeleton.
+
+    3. Implement firmware telemetry framing and decoding.
+
+    4. Build Python WebSocket bridge with replayable mock data.
+
+    5. Connect GUI and verify real-time responsiveness.
+
+    6. Conduct hardware-in-the-loop testing.
+
+
+
+
+                                                6
+

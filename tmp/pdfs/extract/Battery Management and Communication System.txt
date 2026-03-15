@@ -1,0 +1,337 @@
+UCR BCOE EE175 SENIOR DESIGN
+
+
+
+
+Final Design Presentation
+
+  10s1p Li-ion instrumentation & control
+
+  BQ76930 monitoring & STM32 firmware
+
+  Electronic Load for testing
+
+  Operator dashboard
+
+
+
+
+GROUP MEMBERS
+
+Kaushik Vada | Christian Kim | Nicholas Poon | Connor Stewart
+ Concept and Application
+What is our project?
+
+Electrical Engineering Relation: Power System Design & PCB Design
+
+Architecture
+  Battery Management System Unit: main unit for Cell
+  Balancing, Fault Detection, and Thermal Monitoring                   BMS
+  Electronic Variable Load: test unit to perform Amperage
+  Control and Thermal Monitoring
+
+Key Features (BMS)
+ 36V 10s1p Li-ion Cell Pack
+
+ BQ76930 Cell Supervision
+
+ NTC sensing and active cooling via PWM fan control.
+
+Applications
+                                                              E-Load
+  Provides power to electrical subsystems at 36V
+
+ Ex. Electronic Load, NVIDIA Jetson, LED, etc.
+  Technical Design Objectives
+
+Metrics                  Target                         Implemented Coverage
+
+Battery Configuration    10s1p                          Monitor 10 cell voltages, 10 NTCs, pack current, and fan telemetry.
+
+
+Pack Electrical Target   36 V / 4.2 Ah                  Support Molicel P42A pack 151.2 Wh nominal) with cell-level visibility.
+
+
+Current Limits           10.0 A Max Discharge           BQ76930 coulomb-counter + 20mΩ shunt for pack current estimation.
+
+                         OV: 4.0 V | UV: 2.70 V | OC:   Reading from the BQ76930 ADC registers and hardware comparators triggering FET
+Fault Limits
+                         10.0 A                         disconnects when thresholds are breached
+                         Max Temp: 60°C
+Temperature Limits       Discharge) / 45°C             Max Temp: 60°C Discharge) / 45°C Charge
+                         Charge
+
+
+
+Host Interface           115200 baud                    USB CDC telemetry, QWebChannel command delivery, 50ms polling.
+High-Level Design
+System partitioned into battery unit, control
+electronics, and operator station to isolate the
+high-energy pack from the USB host interface.
+
+Battery Unit
+- 10s1p pack, thermistors, fan, balancing, and primary
+protection hardware.
+- Custom BMS PCB
+
+Testbenches
+- Custom ELoad PCB to sink electrical energy and
+dissipate as heat.
+- Custom Cell Emulator to emulate individual cell voltages
+Operator Station
+- BMS Dashboard that displays battery data from the
+BMS and controls the ELoad
+- Battery Charger software to control the battery
+charger for our battery pack.
+System-Block Diagram
+Low-Level Electrical Design
+Final implementation schematics across three core subsystems
+
+
+
+
+ BQ76930 Front-End                      STM32F303RC Core                   Fan Control Sheet
+
+ Manages cell taps, primary shunt       Handles thermistor inputs, BMS     Dedicated PWM enable signaling,
+ current path, and                      comms, hardware watchdog,          TACH feedback filtering,
+ charge/discharge FET control           status LEDs, USB, and debug I/O.   connector routing, and power
+ elements.                                                                 interface.
+Low-Level Electrical Design
+    BMS Top Layer Sch     E-Load Top Layer Sch
+    Low-Level Software Design
+
+
+
+
+   E-Load Dashboard                                           BMS Dashboard
+We use this interface for hardware-in-the-loop and       The main job is to ingest and visualize real-time
+load-control workflows. As you can see in the UI, it     telemetry from the STM32, displaying the 10
+allows us to set specific target loads via the DAC and   individual cell voltages, pack current, and thermistor
+monitor thermal dissipation and ambient                  readings
+temperatures during testing
+Electronic Load
+Programmed a custom electronic load that communicates via STM32 through DAC to sink
+controlled current from our BMS load.
+
+
+
+
+ Hardware                                                   Firmware
+                                                               1. Launcher Startup
+    1. Designed a variable electronic load capable of
+                                                                Initialize PyQt6 WebEngine, set up Python-JS bridge,
+    handling 1A load current and 36V.
+                                                               and load main UI assets.
+    2. Accurately measure DUT voltage and current              2. Serial Connection Layer
+    using 4  144Ω shunt resistors in parallel each rated      Auto-detect available USB CDC ports and negotiate
+    for 10W giving us 36Ω and a combined power rating          connection at 115200 baud.
+    of 40W.
+                                                               3. GUI
+     3. Achieved this by using a IRFP250NPBF capable of
+                                                               Load value is our DAC voltage 04.096V) and
+     maximum drain to source voltage of 200V and
+                                                               determine a sought amperage value to set the load
+     maximum drain current of 30A.
+                                                               current which also displays a load prediction.
+                                                               Additionally thereʼs ambient temperature and PWM
+                                                               controlled fan cooling.
+Technical Challenges & Engineered Solutions
+Navigating hardware revisions, ﬁrmware bugs, and assembly setbacks to deliver a robust system.
+
+
+
+
+          Electronic Load (E-Load)                                   Battery Management
+                                                                     System
+
+     PCB Design & Components
+                                                                Firmware & USB Stability
+     Corrected missing I2C pull-ups, power plane debug
+                                                                Resolved critical STM32 USB CDC enumeration
+     traces, and load-switching logic ﬂaws via extensive
+                                                                dropouts and refactored erratic fault response logic
+     magnetic wire reworks.
+                                                                during ﬁnal software integration.
+     Analog Sensing & Assembly
+                                                                Hardware Integration
+     Recovered from reversed polarized capacitors and
+                                                                Breaker Mosfets were behaving incorrectly to its
+     Op-Amp failures. Descoped current monitoring due to
+                                                                intended functionality in relation to datasheet. We
+     incorrect shunt values and strict timelines.
+                                                                replaced with relays.
+ Major System Components
+ Main subsystems and implementation ownership
+
+
+    Assembly & Harness
+
+Includes the 10s1p cell holder design, ﬁnal enclosure ﬁt-up, high-current
+harness routing, and E-load bring-up.
+
+    BMS Hardware Stack
+
+BMS schematic/layout engineering, BQ76930 monitoring integration, and
+protection circuit interfaces.
+
+     Embedded Control Firmware
+
+STM32F303RC bare-metal bring-up, ADC/sensing integration, Fan PWM
+loop, and USB CDC control.
+
+    Operator Dashboard
+
+PyQt6 launcher, Python-to-Web bridge, command-surface GUI, and Jetson AI
+data path provisioning.
+Major System Components
+BMS Schematic Capture     ELoad Schematic Capture
+Team Contributions
+Explicit member-by-member subsystem ownership and responsibilities
+
+
+
+Kaushik                                                   Christian
+
+  Dashboard and GUI design/implementation                    Electronic Load ELoad development
+
+  CAD modeling and enclosure refinement                      System testing and debugging support
+
+  Firmware integration and telemetry path work               NVIDIA Jetson AI model contributions
+
+  NVIDIA Jetson AI model pipeline direction                  Battery charger and pack/enclosure harness setup
+
+
+
+
+Nick                                                      Connor
+
+  BMS layout and core PCB design                             Overall architecture and system planning
+
+  ELoad subsystem validation and bring-up + firmware        BMS schematic logic development
+
+  BMS hardware stack validation and bring-up                 Hardware emulation board design
+
+  Battery charger and battery-cell harness engineering       Firmware architecture assistance and support
+Design Considerations
+Constraints / trade-offs / adopted industry standards
+
+
+
+
+  Time & Integration Risk                    Power, Thermal & Safety                         Size, Weight & Cost
+  Main ICs communicate through               Making sure that all the cells in the         Designed a compact enclosure
+ I2C because our system does not            BMS and all the electronics/FETs in         prioritizing airflow. The weight of the
+        require high-speed                  the ELoad are cooled properly and          system is around 2lbs. Custom PCBs
+         communication.                       efficiently without compromising          estimate cost of entire system $1700.
+                                                      design and space
+
+
+
+
+ Industry Standards Used:
+ USB 2.0 Full-Speed, I2C protocol, ESD protection, Altium Designer, Low-Side FET protection, Automotive-grade parts,
+ Supervisor/Watchdog IC, LED indicators, Test Points
+ Test Report & Validation
+  Verification of engineering requirements
+
+
+
+
+Test Item                   Original Objective                    Observations and Implementations                                      Status
+
+
+                            Show all 10 cells and 10 thermistor   10 cell voltages plus thermistor mapped to the GUI to read and
+Cell & Thermal Visibility
+                            channels                              show live data
+
+
+                            Reliable host communication at        USB CDC interface plus GUI serial connection flow with a 115200
+USB Host Link
+                            115200 baud                           baud rate.
+
+
+                            Auto/manual cooling with
+Fan Control Loop                                                  1 kHz PWM, 0100% duty control
+                            measurable RPM
+
+
+                            Convert BQ register readings into
+Current Sensing                                                   20 mΩ shunt conversion implemented at 0.422 mA/LSB default.
+                            pack current
+
+
+                            Handle mixed telemetry formats
+Parser Resilience                                                 JSON handling
+                            without dropping
+
+
+                            Close the loop with calibrated live   Core integration complete; calibration identified as immediate next
+Calibration Check
+                            hardware data                         step.
+ System Demonstration
+ Live evaluation of the final command surface and telemetry
+
+
+Demonstration Sequences
+ Scene 1 Initialization
+ Dashboard boot sequence and successful serial connection
+ handshake over USB.
+
+
+ Scene 2 Telemetry Streaming
+  Live acquisition of individual cell voltages, pack current draw,
+ and temperature gradients.
+
+
+ Scene 3 Thermal Management
+ Toggling between automatic and manual fan control,
+ observing dynamic RPM status updates.
+
+
+ Scene 4 Dynamic Load
+ Electronic Load ELoad or charger interaction to monitor
+ overall system response and safety cut-offs.
+Project Summary
+Final takeaways and Future Directions.
+
+
+
+
+                                                                              What Comes Next
+                                                                          - Final thermal calibration & closer
+    What Was Achieved                       What Is Strongest             physical charger validation.
+                                                                          - Further parallelize all the power
+  • BQ76930 robust sensing &             • Accurate current               MOSFETs to achieve a max power
+                                                                          dissipation of 800W and current
+  STM32 control layer.                   measurement.
+                                                                          sinking of 2324A.
+                                                                          - Reconfigure the Op-Amp Logic with
+  • Electric load supporting up to        • Reactive and safe automated   correct selection of precision shunt
+  1A of load current at 36V              thermal control loops.           low ohm resistor.
+                                                                          - Add more system indicators
+                                                                           - Advanced fault handling, logging,
+  • High-speed USB telemetry &           • Serial parser robustness &     and data trending.
+  premium PyQt6 dashboard.               overall GUI usability.            - NVIDIA Jetson-based
+                                                                          state-of-health estimation algorithms.
+
+
+
+
+  Closing Takeaway: A modular, safe, expandable battery platform ready for analytics and
+                                                 validation.
+Acknowledgments
+People who were fundamental to the development of our project
+
+
+
+
+         Dr. Roman
+                                              Mehrnoosh Ayazi           Manglai Zhou
+          Chomko
+
+
+
+
+  Closing Takeaway: A modular, safe, expandable battery platform ready for analytics and
+                                                 validation.
+
