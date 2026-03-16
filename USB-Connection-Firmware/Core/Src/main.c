@@ -137,6 +137,7 @@ uint8_t last_sys_ctrl2 =
 uint8_t thermal_shutdown = 0;    // 1 = FETs disabled due to overtemp
 uint8_t charger_forced_off = 0;  // 1 = C_OK==0 forced FETs off
 uint8_t battfull_forced_off = 0; // 1 = BATT_FULL==1 forced FETs off
+uint8_t safety_fault_active = 0; // 1 = hardware fault (OV, UV, OC) active
 
 // Charger Override Variables (GUI manual control)
 uint8_t charger_override_mode =
@@ -335,7 +336,7 @@ static fet_mode_t Get_Requested_FET_Mode(void) {
 }
 
 static fet_mode_t Get_Active_FET_Mode(void) {
-  if (thermal_shutdown) {
+  if (thermal_shutdown || safety_fault_active) {
     return FET_MODE_OFF;
   }
   if (charge_mode && (charger_forced_off || battfull_forced_off)) {
@@ -551,13 +552,14 @@ int main(void) {
 
     uint8_t faultStatus[1] = {0};
     BQ_ReadRegs(SYS_STAT, faultStatus, 1);
+    safety_fault_active = (faultStatus[0] & 0x3F) ? 1 : 0;
 
     uint8_t loadPresent[1] = {0};
     BQ_ReadRegs(SYS_CTRL1, loadPresent, 1);
     loadPresent[0] = loadPresent[0] & 0x80;
 
     // --- -1. SET OVERVOLTAGE & UNDERVOLTAGE TRIP TRESHOLDS ---
-    BQ_WriteReg(OV_TRIP, 0x8E); // 3.8V is 0x6D Set to 4V (0x8E) see p. 22 in ds
+    BQ_WriteReg(OV_TRIP, 0x6D); // 3.8V is 0x6D Set to 4V (0x8E) see p. 22 in ds
     BQ_WriteReg(UV_TRIP, 0xB9); // Set to 2.7V
 
     // --- 0. SET OVERCURRENT TRIP DELAY & THRESHOLD ---
@@ -680,7 +682,7 @@ int main(void) {
         thermal_shutdown = 0;
       }
 
-      if (thermal_shutdown || fets_off_requested) {
+      if (thermal_shutdown || fets_off_requested || safety_fault_active) {
         Set_SYS_CTRL2(SYS_CTRL2_FETS_OFF); // both FETs explicitly off
       } else if (charge_mode) {
         if (charger_forced_off || battfull_forced_off) {
@@ -705,7 +707,8 @@ int main(void) {
       if (thermal_shutdown) {
         // No balancing during thermal shutdown
         Disable_Balancing_Output();
-      } else if (Get_Active_FET_Mode() == FET_MODE_CHARGE && (!bal_enabled || !bal_alt_enabled)) {
+      } else if (Get_Active_FET_Mode() == FET_MODE_CHARGE &&
+                 (!bal_enabled || !bal_alt_enabled)) {
         // CHARGE MODE: balance cells above 3.8V with smart even/odd alternation
         uint8_t cellbal1 = 0, cellbal2 = 0;
         uint16_t need_bal = 0; // bitmask of cells needing balance
