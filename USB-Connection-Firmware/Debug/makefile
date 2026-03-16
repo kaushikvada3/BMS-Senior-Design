@@ -1,6 +1,6 @@
 ################################################################################
 # Automatically-generated file. Do not edit!
-# Toolchain: GNU Tools for STM32 (13.3.rel1)
+# Toolchain: GNU Tools for STM32 (14.3.rel1)
 ################################################################################
 
 -include ../makefile.init
@@ -66,6 +66,12 @@ default.size.stdout \
 OBJDUMP_LIST += \
 USB-Connection-Firmware.list \
 
+OBJCOPY_HEX += \
+USB-Connection-Firmware.hex \
+
+OBJCOPY_BIN += \
+USB-Connection-Firmware.bin \
+
 
 # All Target
 all: main-build
@@ -74,8 +80,8 @@ all: main-build
 main-build: USB-Connection-Firmware.elf secondary-outputs
 
 # Tool invocations
-USB-Connection-Firmware.elf USB-Connection-Firmware.map: $(OBJS) $(USER_OBJS) /Users/kaushikvada/Documents/BMS-Senior-Design/USB-Connection-Firmware/STM32F303RCTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "USB-Connection-Firmware.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/Users/kaushikvada/Documents/BMS-Senior-Design/USB-Connection-Firmware/STM32F303RCTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="USB-Connection-Firmware.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
+USB-Connection-Firmware.elf USB-Connection-Firmware.map: $(OBJS) $(USER_OBJS) C:\Users\nicho\OneDrive\Documents\Github\BMS-Senior-Design\USB-Connection-Firmware\STM32F303RCTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "USB-Connection-Firmware.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\nicho\OneDrive\Documents\Github\BMS-Senior-Design\USB-Connection-Firmware\STM32F303RCTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="USB-Connection-Firmware.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -89,12 +95,22 @@ USB-Connection-Firmware.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TO
 	@echo 'Finished building: $@'
 	@echo ' '
 
+USB-Connection-Firmware.hex: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-objcopy  -O ihex $(EXECUTABLES) "USB-Connection-Firmware.hex"
+	@echo 'Finished building: $@'
+	@echo ' '
+
+USB-Connection-Firmware.bin: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-objcopy  -O binary $(EXECUTABLES) "USB-Connection-Firmware.bin"
+	@echo 'Finished building: $@'
+	@echo ' '
+
 # Other Targets
 clean:
-	-$(RM) USB-Connection-Firmware.elf USB-Connection-Firmware.list USB-Connection-Firmware.map default.size.stdout
+	-$(RM) USB-Connection-Firmware.bin USB-Connection-Firmware.elf USB-Connection-Firmware.hex USB-Connection-Firmware.list USB-Connection-Firmware.map default.size.stdout
 	-@echo ' '
 
-secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST)
+secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST) $(OBJCOPY_HEX) $(OBJCOPY_BIN)
 
 fail-specified-linker-script-missing:
 	@echo 'Error: Cannot find the specified linker script. Check the linker settings in the build configuration.'

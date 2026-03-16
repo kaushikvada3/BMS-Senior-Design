@@ -160,32 +160,41 @@
         <!-- FET Control -->
         <section class="hud__section glass-panel">
           <div class="timeline__header">
-            <p class="eyebrow">FET Control</p>
+            <p class="eyebrow">Relay Control</p>
             <div class="mode-selector small">
-              <button class="mode-btn" id="fet-discharge-btn">Discharge</button>
-              <button class="mode-btn" id="fet-off-btn">FETs Off</button>
+              <button class="mode-btn" id="fet-discharge-btn">Relay On</button>
+              <button class="mode-btn" id="fet-off-btn">Relay Off</button>
             </div>
           </div>
           <div class="fet-status-grid">
-            <div class="fet-indicator" data-fet-indicator="charge">
-              <p class="metric-card__label">Charge FET</p>
-              <p class="fet-indicator__value" data-charge-fet-status>--</p>
-            </div>
             <div class="fet-indicator" data-fet-indicator="discharge">
-              <p class="metric-card__label">Discharge FET</p>
+              <p class="metric-card__label">Discharge Relay</p>
               <p class="fet-indicator__value" data-discharge-fet-status>--</p>
             </div>
           </div>
           <p class="metric-card__hint fet-thermal-note" data-fet-thermal-note hidden>Thermal shutdown: both FETs forced
             off</p>
+        </section>
+
+        <!-- Charger Status Override -->
+        <section class="hud__section glass-panel" id="charger-status-panel" style="display: none;">
+          <div class="timeline__header">
+            <p class="eyebrow">Charger Status</p>
+            <div class="mode-selector small">
+              <button class="mode-btn active" id="charger-auto-btn">Auto</button>
+              <button class="mode-btn" id="charger-manual-btn">Manual</button>
+            </div>
+          </div>
           <div class="fet-status-grid" style="margin-top: 0.5rem;">
             <div class="fet-indicator" data-fet-indicator="charger-ok">
-              <p class="metric-card__label">Charger OK</p>
+              <p class="metric-card__label">C_OK</p>
               <p class="fet-indicator__value" data-charger-ok-status>--</p>
+              <button class="mode-btn charger-toggle-btn disabled" id="charger-cok-toggle" disabled>Toggle</button>
             </div>
             <div class="fet-indicator" data-fet-indicator="batt-full">
-              <p class="metric-card__label">Battery Full</p>
+              <p class="metric-card__label">Batt_Full</p>
               <p class="fet-indicator__value" data-batt-full-status>--</p>
+              <button class="mode-btn charger-toggle-btn disabled" id="charger-battfull-toggle" disabled>Toggle</button>
             </div>
           </div>
           <p class="metric-card__hint fet-thermal-note" data-charger-forced-note hidden>Charger fault: FETs forced off</p>

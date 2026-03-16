@@ -558,6 +558,8 @@ class SerialWorker(QObject):
             raw_out["bal_status"] = self._pending_frame["bal_status"]
         if "fet_status" in self._pending_frame:
             raw_out["fet_status"] = self._pending_frame["fet_status"]
+        if "charger_status" in self._pending_frame:
+            raw_out["charger_status"] = self._pending_frame["charger_status"]
 
         self._saw_structured_frame = True
         self._reset_pending_frame()

@@ -3784,13 +3784,23 @@ const packCurrentEl = document.querySelector("[data-pack-current]");
 const packTempEl = document.querySelector("[data-pack-temp]");
 const sysStatEl = document.querySelector("[data-sys-stat]");
 const loadPresentEl = document.querySelector("[data-load-present]");
-const chargeFetStatusEl = document.querySelector("[data-charge-fet-status]");
 const dischargeFetStatusEl = document.querySelector("[data-discharge-fet-status]");
 const fetThermalNoteEl = document.querySelector("[data-fet-thermal-note]");
 const chargerOkStatusEl = document.querySelector("[data-charger-ok-status]");
 const battFullStatusEl = document.querySelector("[data-batt-full-status]");
 const chargerForcedNoteEl = document.querySelector("[data-charger-forced-note]");
 const battfullForcedNoteEl = document.querySelector("[data-battfull-forced-note]");
+
+let userIntentChargeMode = false; // Tracks if user wants the charge panel open
+// Charger Override DOM elements
+const chargerStatusPanel = document.getElementById("charger-status-panel");
+const chargerAutoBtn = document.getElementById("charger-auto-btn");
+const chargerManualBtn = document.getElementById("charger-manual-btn");
+const chargerCokToggle = document.getElementById("charger-cok-toggle");
+const chargerBattfullToggle = document.getElementById("charger-battfull-toggle");
+let chargerOverrideManual = false;
+let chargerManualCok = true;      // manual state: true=OK, false=Fault
+let chargerManualBattFull = false; // manual state: false=Charging, true=Full
 const thermalTrendEl = document.querySelector("[data-thermal-trend]");
 const cellGridEl = document.querySelector(".cell-grid");
 const detailPanel = document.querySelector("[data-detail-panel]");
@@ -4268,7 +4278,14 @@ function syncFetControls(fetStatus) {
   if (fetDischargeBtn) fetDischargeBtn.classList.toggle("active", !thermalShutdown && mode === FET_MODE_DISCHARGE);
   if (fetOffBtn) fetOffBtn.classList.toggle("active", !thermalShutdown && mode === FET_MODE_OFF);
 
-  updateFetIndicator("charge", chargeFetStatusEl, chargeEnabled);
+  if (chargerStatusPanel) {
+    if (userIntentChargeMode) {
+      chargerStatusPanel.style.display = "";
+    } else {
+      chargerStatusPanel.style.display = "none";
+    }
+  }
+
   updateFetIndicator("discharge", dischargeFetStatusEl, dischargeEnabled);
 
   if (fetThermalNoteEl) {
@@ -4287,9 +4304,9 @@ function syncChargerStatus(chargerStatus) {
   // Charger OK indicator: green=OK, red=fault
   updateFetIndicator("charger-ok", chargerOkStatusEl, chargerOk);
 
-  // Battery Full indicator: "Full"/"Charging" with red/green
+  // Battery Full indicator: "Full"/"Off" with red/green
   if (battFullStatusEl) {
-    battFullStatusEl.textContent = battFull === true ? "Full" : battFull === false ? "Charging" : "--";
+    battFullStatusEl.textContent = battFull === true ? "Full" : battFull === false ? "Off" : "--";
     battFullStatusEl.classList.remove("is-on", "is-off");
     battFullStatusEl.classList.add(battFull ? "is-off" : "is-on");
     const indicatorEl = document.querySelector('[data-fet-indicator="batt-full"]');
@@ -4298,6 +4315,18 @@ function syncChargerStatus(chargerStatus) {
       indicatorEl.classList.add(battFull ? "is-off" : "is-on");
     }
   }
+
+  // Update manual toggle button labels
+  if (chargerCokToggle) {
+    chargerCokToggle.textContent = "Toggle";
+  }
+  if (chargerBattfullToggle) {
+    chargerBattfullToggle.textContent = "Toggle";
+  }
+
+  // Track manual state from firmware feedback
+  if (typeof chargerOk === "boolean") chargerManualCok = chargerOk;
+  if (typeof battFull === "boolean") chargerManualBattFull = battFull;
 
   // Show/hide forced-off notes
   if (chargerForcedNoteEl) chargerForcedNoteEl.hidden = !chargerForced;
@@ -4922,6 +4951,7 @@ if (balSlider) {
 // Charge Mode Handlers (after balance elements are declared)
 if (chargeOffBtn) {
   chargeOffBtn.addEventListener("click", () => {
+    userIntentChargeMode = false;
     if (simulationEnabled) {
       simulatedFetMode = FET_MODE_DISCHARGE;
       mockStream();
@@ -4932,6 +4962,8 @@ if (chargeOffBtn) {
 
 if (chargeOnBtn) {
   chargeOnBtn.addEventListener("click", () => {
+    userIntentChargeMode = true;
+    
     // Deactivate manual balancing when entering charge mode
     isBalEnabled = false;
     if (balAltBtn) balAltBtn.classList.remove("active");
@@ -4964,6 +4996,7 @@ function resetEloadControls() {
 
 if (fetDischargeBtn) {
   fetDischargeBtn.addEventListener("click", () => {
+    userIntentChargeMode = false;
     if (simulationEnabled) {
       simulatedFetMode = FET_MODE_DISCHARGE;
       mockStream();
@@ -4974,11 +5007,57 @@ if (fetDischargeBtn) {
 
 if (fetOffBtn) {
   fetOffBtn.addEventListener("click", () => {
+    userIntentChargeMode = false;
     if (simulationEnabled) {
       simulatedFetMode = FET_MODE_OFF;
       mockStream();
     }
     sendBackendCommand("BMS:FETS:OFF");
+  });
+}
+
+// --- Charger Status Override Controls ---
+function setChargerOverrideMode(manual) {
+  chargerOverrideManual = manual;
+  if (chargerAutoBtn) chargerAutoBtn.classList.toggle("active", !manual);
+  if (chargerManualBtn) chargerManualBtn.classList.toggle("active", manual);
+  if (chargerCokToggle) {
+    chargerCokToggle.disabled = !manual;
+    chargerCokToggle.classList.toggle("disabled", !manual);
+  }
+  if (chargerBattfullToggle) {
+    chargerBattfullToggle.disabled = !manual;
+    chargerBattfullToggle.classList.toggle("disabled", !manual);
+  }
+}
+
+if (chargerAutoBtn) {
+  chargerAutoBtn.addEventListener("click", () => {
+    setChargerOverrideMode(false);
+    sendBackendCommand("BMS:CHARGER:AUTO");
+  });
+}
+
+if (chargerManualBtn) {
+  chargerManualBtn.addEventListener("click", () => {
+    setChargerOverrideMode(true);
+    sendBackendCommand("BMS:CHARGER:MANUAL");
+  });
+}
+
+if (chargerCokToggle) {
+  chargerCokToggle.addEventListener("click", () => {
+    if (!chargerOverrideManual) return;
+    chargerManualCok = !chargerManualCok;
+    sendBackendCommand(`BMS:CHARGER:COK:${chargerManualCok ? 1 : 0}`);
+  });
+}
+
+if (chargerBattfullToggle) {
+  chargerBattfullToggle.addEventListener("click", () => {
+    if (!chargerOverrideManual) return;
+    chargerManualBattFull = !chargerManualBattFull;
+    sendBackendCommand(`BMS:CHARGER:BATTFULL:${chargerManualBattFull ? 1 : 0}`);
   });
 }
 
