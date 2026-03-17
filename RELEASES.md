@@ -29,4 +29,4 @@ Welcome to the **BMS-Senior-Design** Release Documentation! This file tracks the
 *   Fixed structural inconsistencies in serial streaming for robust data handling.
 
 ---
-*Authored by Kaushik Vada & Team*
+*Authored by Kaushik Vada, Connor Stewart, Nick Poon, and Christian Kim*
